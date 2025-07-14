@@ -12,9 +12,10 @@ import cal_dist
 
 if __name__ == '__main__':
     # --- Configuration ---
-    MODEL_FILE = 'assets/model_normalized.glb'
+    MODEL_FILE = 'assets/model1.glb'
     CAMERA_DIR = 'data'
-    NUM_TESTS = 10
+    NUM_TESTS = 1
+    DIFFERENT_MODEL_FILE = 'assets/model2.glb'
 
     if not os.path.exists(MODEL_FILE):
         print(f"❌ Error: Model file not found at '{MODEL_FILE}'")
@@ -60,6 +61,26 @@ if __name__ == '__main__':
         print(f"✅ Dissimilarity Score: {dissimilarity:.4f}")
 
     # --- 4. Cleanup and Final Report ---
-    renderer.delete()
+
     print("\n--- ✅ Test Complete ---")
     print(f"Average dissimilarity across {NUM_TESTS} random rotations: {total_dissimilarity / NUM_TESTS:.4f}")
+    
+    
+    print("\n--- Testing Two Different Models Distance ---")
+    diff_mesh = trimesh.load(DIFFERENT_MODEL_FILE, force='mesh')
+    diff_features = encode.generate_features(
+        diff_mesh, camera_rigs, renderer, processor, model, device
+    )
+    
+    diff_dissimilarity = cal_dist.calculate_lfd_distance(baseline_features, diff_features)
+    renderer.delete()
+    print(f"Dissimilarity between '{MODEL_FILE}' and '{DIFFERENT_MODEL_FILE}': {diff_dissimilarity:.4f}")
+    print("All tests completed successfully!")
+    
+    save_path = 'assets'
+    encode.save_features(
+        baseline_features, os.path.join(save_path, 'baseline_features.npy')
+    )
+    encode.save_features(
+        diff_features, os.path.join(save_path, 'diff_features.npy')
+    )
