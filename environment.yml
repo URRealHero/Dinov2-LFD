@@ -141,7 +141,6 @@ dependencies:
   - networkx=3.5=pyhe01879c_0
   - nlohmann_json=3.11.3=he02047a_1
   - nomkl=1.0=h5ca1d4c_0
-  - numpy=2.3.1=py312h6cf2f7f_0
   - ocl-icd=2.3.3=hb9d3cd8_0
   - opencl-headers=2025.06.13=h5888daf_0
   - openh264=2.3.1=hcb278e6_2
@@ -177,7 +176,6 @@ dependencies:
   - tqdm=4.67.1=pyhd8ed1ab_1
   - truststore=0.10.1=pyh29332c3_0
   - typing_extensions=4.14.1=pyhe01879c_0
-  - tzdata=2025b=h78e105d_0
   - urllib3=2.4.0=pyhd8ed1ab_0
   - wayland=1.24.0=h3e06ad9_0
   - wayland-protocols=1.45=hd8ed1ab_0
@@ -193,10 +191,22 @@ dependencies:
   - zstandard=0.23.0=py312h66e93f0_2
   - zstd=1.5.7=hb8e6e7a_2
   - pip:
+      - antlr4-python3-runtime==4.9.3
+      - coloredlogs==15.0.1
+      - contourpy==1.3.2
+      - cycler==0.12.1
+      - flatbuffers==25.2.10
+      - fonttools==4.58.5
       - freetype-py==2.5.1
       - hf-xet==1.1.5
       - huggingface-hub==0.33.4
+      - humanfriendly==10.0
+      - hydra-core==1.3.2
       - imageio==2.37.0
+      - iopath==0.1.10
+      - kiwisolver==1.4.8
+      - matplotlib==3.10.3
+      - numpy==2.2.6
       - nvidia-cublas-cu12==12.6.4.1
       - nvidia-cuda-cupti-cu12==12.6.80
       - nvidia-cuda-nvrtc-cu12==12.6.77
@@ -211,13 +221,28 @@ dependencies:
       - nvidia-nccl-cu12==2.26.2
       - nvidia-nvjitlink-cu12==12.6.85
       - nvidia-nvtx-cu12==12.6.77
+      - omegaconf==2.3.0
+      - onnx==1.18.0
+      - onnxruntime==1.22.1
+      - opencv-python==4.12.0.88
+      - pandas==2.3.1
+      - portalocker==3.2.0
+      - protobuf==6.31.1
+      - psutil==7.0.0
+      - py-cpuinfo==9.0.0
+      - pycocotools==2.0.10
       - pyglet==2.1.6
       - pyopengl==3.1.0
+      - pyparsing==3.2.3
       - pyrender==0.1.45
+      - python-dateutil==2.9.0.post0
+      - pytz==2025.2
       - pyyaml==6.0.2
       - regex==2024.11.6
       - safetensors==0.5.3
+      - sam-2==1.0
       - scipy==1.16.0
+      - segment-anything==1.0
       - six==1.17.0
       - tokenizers==0.21.2
       - torch==2.7.1+cu126
@@ -226,4 +251,7 @@ dependencies:
       - transformers==4.48.3
       - trimesh==4.7.0
       - triton==3.3.1
+      - tzdata==2025.2
+      - ultralytics==8.3.166
+      - ultralytics-thop==2.0.14
 prefix: /opt/miniforge3
