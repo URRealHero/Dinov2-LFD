@@ -24,6 +24,7 @@ if __name__ == '__main__':
     # --- 1. Initial Setup ---
     print("--- Initializing Test Environment ---")
     processor, model, device = encode.load_dinov2_model()
+    # processor, model, device = encode.load_clip_model()
     renderer = pyrender.OffscreenRenderer(256, 256)
     camera_rigs = encode.load_camera_positions(CAMERA_DIR) # Note: rigs, not positions
     
@@ -31,9 +32,11 @@ if __name__ == '__main__':
     print(f"\n🔄 Encoding baseline features for '{MODEL_FILE}'...")
     original_mesh = trimesh.load(MODEL_FILE, force='mesh')
     baseline_features = encode.generate_features(
-        original_mesh, camera_rigs, renderer, processor, model, device
+        original_mesh, camera_rigs, renderer, model_assets=(processor, model, device)
     )
     print(f"✅ Baseline features generated with shape {baseline_features.shape}.")
+    
+    # print(f"The maximum of the feature vector is {baseline_features.max()}, The minimum of the feature vector is {baseline_features.min()}")
 
     # --- 3. Run Rotation Tests ---
     total_dissimilarity = 0
@@ -51,7 +54,7 @@ if __name__ == '__main__':
 
         # c. Generate features for the rotated mesh
         rotated_features = encode.generate_features(
-            rotated_mesh, camera_rigs, renderer, processor, model, device
+            rotated_mesh, camera_rigs, renderer, model_assets=(processor, model, device)
         )
         
         # d. Calculate the dissimilarity using the LFD method
@@ -69,7 +72,7 @@ if __name__ == '__main__':
     print("\n--- Testing Two Different Models Distance ---")
     diff_mesh = trimesh.load(DIFFERENT_MODEL_FILE, force='mesh')
     diff_features = encode.generate_features(
-        diff_mesh, camera_rigs, renderer, processor, model, device
+        diff_mesh, camera_rigs, renderer, model_assets=(processor, model, device)
     )
     
     diff_dissimilarity = cal_dist.calculate_lfd_distance(baseline_features, diff_features)
