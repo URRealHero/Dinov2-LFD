@@ -86,7 +86,12 @@ if __name__ == '__main__':
             base_mesh = trimesh.load(base_model_path, force='mesh')
             
             for i in range(NUM_ROT):
-                transform = trimesh.transformations.random_rotation_matrix()
+                # rotate random angle across axis Y
+                transform = trimesh.transformations.rotation_matrix(
+                    angle=np.random.uniform(0, 2 * np.pi), 
+                    direction=[0, 1, 0], 
+                    point=base_mesh.centroid
+                )
                 rotated_mesh = base_mesh.copy()
                 rotated_mesh.apply_transform(transform)
                 

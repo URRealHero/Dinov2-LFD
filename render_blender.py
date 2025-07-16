@@ -113,7 +113,7 @@ def main(args):
     
     if args.quality == 'FAST':
         engine = 'BLENDER_EEVEE'
-        samples = 8
+        samples = 4
     else: # HIGH quality
         engine = 'CYCLES'
         samples = 64
