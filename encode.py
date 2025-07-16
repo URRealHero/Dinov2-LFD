@@ -15,7 +15,6 @@ import hydra
 from hydra.core.global_hydra import GlobalHydra
 
 # --- NOTE: Set this to the path of your Blender executable ---
-# The user specified this path.
 BLENDER_LINK = 'https://download.blender.org/release/Blender3.0/blender-3.0.1-linux-x64.tar.xz'
 BLENDER_INSTALLATION_PATH = '.'
 BLENDER_EXECUTABLE_PATH = 'blender-3.0.1-linux-x64/blender'
@@ -38,10 +37,9 @@ except ImportError:
     print("⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.")
 
 
-# --- All Model Loading Functions ---
+# --- All Model Loading Functions (Unchanged) ---
 
 def load_sscd_model(model_path):
-    """Loads a TorchScript model for SSCD."""
     print("Loading SSCD TorchScript model...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = torch.jit.load(model_path).to(device)
@@ -50,7 +48,6 @@ def load_sscd_model(model_path):
     return (model, device)
 
 def load_dinov1_model():
-    """Loads the DINOv1 model and image processor from Hugging Face."""
     print("Loading DinoV1 model...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     processor = AutoImageProcessor.from_pretrained("facebook/dino-vitb8")
@@ -59,7 +56,6 @@ def load_dinov1_model():
     return (processor, model, device)
 
 def load_dinov2_model():
-    """Loads the DinoV2 model and image processor from Hugging Face."""
     print("Loading DinoV2 model...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     processor = AutoImageProcessor.from_pretrained("facebook/dinov2-giant")
@@ -68,7 +64,6 @@ def load_dinov2_model():
     return processor, model, device
 
 def load_clip_model():
-    """Loads the CLIP model and processor from Hugging Face."""
     print("Loading CLIP model...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
@@ -77,239 +72,179 @@ def load_clip_model():
     return (processor, model, device)
 
 def load_sam2_model(config_path, checkpoint_path):
-    """Loads the SAM2 model and predictor from a config and checkpoint."""
     if not SAM2_AVAILABLE:
         raise RuntimeError("SAM2 library is not installed. Cannot load SAM2 model.")
     print("Loading SAM2 model...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    config_dir = os.path.abspath(os.path.dirname(config_path))
-    config_name = os.path.basename(config_path)
+    config_dir, config_name = os.path.dirname(config_path), os.path.basename(config_path)
     GlobalHydra.instance().clear()
-    with hydra.initialize_config_dir(config_dir=config_dir, version_base=None):
+    with hydra.initialize_config_dir(config_dir=os.path.abspath(config_dir), version_base=None):
         sam2_model = build_sam2(config_name, checkpoint_path).to(device)
-
     predictor = SAM2ImagePredictor(sam2_model)
     print(f"✅ SAM2 model loaded on {device}.")
     return predictor, device
 
-
-# --- Blender Rendering Functions ---
-
+# --- Helper Functions (Unchanged) ---
 def generate_spherical_views(num_views=150, radius=2.5, fov_deg=50):
-    """
-    Generates a list of view dictionaries for Blender.
-    """
     views = []
     phi = np.pi * (3. - np.sqrt(5.))
-
     for i in range(num_views):
         y = 1 - (i / float(num_views - 1)) * 2
         r = np.sqrt(1 - y * y)
         theta = phi * i
-        pitch = np.arcsin(y)
-        yaw = theta
-
-        views.append({
-            'yaw': yaw, 'pitch': pitch, 'radius': radius, 'fov': np.deg2rad(fov_deg)
-        })
+        pitch, yaw = np.arcsin(y), theta
+        views.append({'yaw': yaw, 'pitch': pitch, 'radius': radius, 'fov': np.deg2rad(fov_deg)})
     print(f"✅ Generated {num_views} camera views for Blender.")
     return views
 
-def render_with_blender(object_path, views, resolution=512, quality='FAST'):
-    """
-    Calls the Blender script as a subprocess to render views.
-    It now captures output and only prints it if an error occurs.
-    """
-    if not os.path.exists(BLENDER_EXECUTABLE_PATH):
-        _install_blender()
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        views_json = json.dumps(views)
-        blender_script_path = os.path.join(os.path.dirname(__file__), 'render_blender.py')
-
-        command = [
-            'xvfb-run', '-a', # Use a virtual display for headless EEVEE
-            BLENDER_EXECUTABLE_PATH, '--background', '--python', blender_script_path,
-            '--', '--object', object_path, '--output_folder', temp_dir,
-            '--views', views_json, '--resolution', str(resolution), '--quality', quality
-        ]
-        
-        print(f"--- Calling Blender for {os.path.basename(object_path)} (Quality: {quality}) ---")
-        
-        # Run the process and wait for it to complete, capturing all output.
-        result = subprocess.run(command, capture_output=True, text=True)
-        
-        # Check if the process failed.
-        if result.returncode != 0:
-            print(f"❌ BLENDER FAILED for {os.path.basename(object_path)}.")
-            print("--- Blender's Full Output ---")
-            # Print the combined stdout and stderr to show the error.
-            print(result.stdout)
-            print(result.stderr)
-            print("--- End of Blender Output ---")
-            raise subprocess.CalledProcessError(result.returncode, command, output=result.stdout, stderr=result.stderr)
-        
-        # If successful, load the images.
-        images = [Image.open(os.path.join(temp_dir, f'{i:03d}.png')) for i in range(len(views)) if os.path.exists(os.path.join(temp_dir, f'{i:03d}.png'))]
-        
-        if len(images) != len(views):
-            print(f"⚠️ Warning: Expected {len(views)} rendered images, but found {len(images)}.")
-            print("This might indicate a problem during rendering. Full Blender log:")
-            print(result.stdout) # Print log if image count mismatches
-
-        return images
-
-
-# --- All Feature Extraction Functions ---
-
+# --- All Feature Extraction Functions (Unchanged) ---
+# These functions now take a list of PIL Images as input
 def extract_sscd_features(images, model, device):
-    preprocess = pth_transforms.Compose([
-        pth_transforms.Resize(288), pth_transforms.ToTensor(),
-        pth_transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ])
+    preprocess = pth_transforms.Compose([pth_transforms.Resize(288), pth_transforms.ToTensor(), pth_transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
     feature_list = []
     with torch.no_grad():
-        for image in tqdm(images, desc="Extracting SSCD Features"):
+        for image in tqdm(images, desc="Extracting SSCD Features", leave=False):
             batch = preprocess(image.convert("RGB")).unsqueeze(0).to(device)
             embedding = model(batch)[0, :]
             feature_list.append(embedding.cpu().numpy())
     return np.vstack(feature_list)
 
 def extract_dinov1_features(images, processor, model, device):
+    """Corrected version using list slicing for batching."""
     feature_list = []
-    batch_size = 16
+    batch_size = 16  # Define a batch size
     with torch.no_grad():
-        for i in tqdm(range(0, len(images), batch_size), desc="Extracting DINOv1 Features"):
-            batch_images = [img.convert("RGB") for img in images[i:i+batch_size]]
-            inputs = processor(images=batch_images, return_tensors="pt", padding=True).to(device)
+        # REPLACED np.array_split with a standard python loop for batching
+        for i in tqdm(range(0, len(images), batch_size), desc="Extracting DINOv1 Features", leave=False):
+            img_batch = images[i : i + batch_size]
+            if not img_batch: continue
+            
+            inputs = processor(images=[img.convert("RGB") for img in img_batch], return_tensors="pt", padding=True).to(device)
             outputs = model(**inputs)
-            last_hidden_state = outputs.last_hidden_state
-            cls_token = last_hidden_state[:, 0, :]
-            patch_tokens = last_hidden_state[:, 1:, :]
+            cls_token, patch_tokens = outputs.last_hidden_state[:, 0, :], outputs.last_hidden_state[:, 1:, :]
             patch_size = model.config.patch_size
-            patch_h = inputs.pixel_values.shape[2] // patch_size
-            patch_w = inputs.pixel_values.shape[3] // patch_size
+            patch_h, patch_w = inputs.pixel_values.shape[2] // patch_size, inputs.pixel_values.shape[3] // patch_size
             b, _, d = patch_tokens.shape
             patch_tokens_grid = patch_tokens.reshape(b, patch_h, patch_w, d).permute(0, 3, 1, 2)
-            gem_pooled = nn.functional.avg_pool2d(patch_tokens_grid.clamp(min=1e-6).pow(4), (patch_h, patch_w)).pow(1./4)
-            gem_pooled = gem_pooled.reshape(b, -1)
-            final_feature = torch.cat((cls_token, gem_pooled), dim=1)
-            feature_list.append(final_feature.cpu().numpy())
+            gem_pooled = nn.functional.avg_pool2d(patch_tokens_grid.clamp(min=1e-6).pow(4), (patch_h, patch_w)).pow(1./4).reshape(b, -1)
+            feature_list.append(torch.cat((cls_token, gem_pooled), dim=1).cpu().numpy())
     return np.vstack(feature_list)
 
 def extract_dinov2_features(images, processor, model, device):
+    """Corrected version using list slicing for batching."""
     feature_list = []
-    batch_size = 16
+    batch_size = 16  # Define a batch size
     with torch.no_grad():
-        for i in tqdm(range(0, len(images), batch_size), desc="Extracting DINOv2 Features"):
-            batch_images = [img.convert("RGB") for img in images[i:i+batch_size]]
-            inputs = processor(images=batch_images, return_tensors="pt", padding=True).to(device)
-            outputs = model(**inputs)
-            cls_tokens = outputs.last_hidden_state[:, 0, :]
+        # REPLACED np.array_split with a standard python loop for batching
+        for i in tqdm(range(0, len(images), batch_size), desc="Extracting DINOv2 Features", leave=False):
+            img_batch = images[i : i + batch_size]
+            if not img_batch: continue
+
+            inputs = processor(images=[img.convert("RGB") for img in img_batch], return_tensors="pt", padding=True).to(device)
+            cls_tokens = model(**inputs).last_hidden_state[:, 0, :]
             feature_list.append(cls_tokens.cpu().numpy())
     return np.vstack(feature_list)
 
 def extract_clip_features(images, processor, model, device):
+    """Corrected version using list slicing for batching."""
     feature_list = []
-    batch_size = 16
+    batch_size = 16 # Define a batch size
     with torch.no_grad():
-        for i in tqdm(range(0, len(images), batch_size), desc="Extracting CLIP Features"):
-            batch_images = [img.convert("RGB") for img in images[i:i+batch_size]]
-            inputs = processor(images=batch_images, return_tensors="pt", padding=True).to(device)
-            vision_outputs = model.vision_model(**inputs)
-            cls_tokens = vision_outputs.last_hidden_state[:, 0, :]
+        # REPLACED np.array_split with a standard python loop for batching
+        for i in tqdm(range(0, len(images), batch_size), desc="Extracting CLIP Features", leave=False):
+            img_batch = images[i : i + batch_size]
+            if not img_batch: continue
+            
+            inputs = processor(images=[img.convert("RGB") for img in img_batch], return_tensors="pt", padding=True).to(device)
+            cls_tokens = model.vision_model(**inputs).last_hidden_state[:, 0, :]
             feature_list.append(cls_tokens.cpu().numpy())
     return np.vstack(feature_list)
 
 def extract_sam2_features(images, predictor, device):
-    if not SAM2_AVAILABLE:
-        raise RuntimeError("SAM2 library is not installed. Cannot extract SAM2 features.")
+    if not SAM2_AVAILABLE: raise RuntimeError("SAM2 library is not installed.")
     feature_list = []
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-        for image in tqdm(images, desc="Extracting SAM2 Features"):
+        for image in tqdm(images, desc="Extracting SAM2 Features", leave=False):
             predictor.set_image(np.array(image.convert("RGB")))
-            feature_map = predictor._features["image_embed"]
-            feature_vector = feature_map.mean(dim=[-1, -2]).squeeze()
+            feature_vector = predictor._features["image_embed"].mean(dim=[-1, -2]).squeeze()
             feature_list.append(feature_vector.cpu().numpy())
     return np.vstack(feature_list)
 
 
-# --- Main Descriptor Generation Function ---
+# ------------------------------------------------------------------
+# --- REFACTORED LOGIC: The two new functions for the split logic ---
+# ------------------------------------------------------------------
 
-def generate_descriptor(object_path, views, model_type, model_assets, quality='FAST'):
+def render_views_to_tempdir(object_path, views, quality='FAST', resolution=512):
     """
-    Generates a single descriptor (set of features) for a 3D model by
-    rendering it with Blender and then extracting features.
+    NEW FUNCTION 1: Renders views and saves them to a persistent temporary directory.
+    It returns the path to this directory. The caller is responsible for cleanup.
+    """
+    if not os.path.exists(BLENDER_EXECUTABLE_PATH):
+        _install_blender()
+
+    # Create a directory that will persist after this function returns.
+    output_dir = tempfile.mkdtemp()
+    
+    views_json = json.dumps(views)
+    blender_script_path = os.path.join(os.path.dirname(__file__), 'render_blender.py')
+    
+    command = [
+        'xvfb-run', '-a',
+        BLENDER_EXECUTABLE_PATH, '--background', '--python', blender_script_path,
+        '--', '--object', object_path, '--output_folder', output_dir,
+        '--views', views_json, '--resolution', str(resolution), '--quality', quality
+    ]
+    
+    print(f"--- Calling Blender for {os.path.basename(object_path)} (Output: {output_dir}) ---")
+    result = subprocess.run(command, capture_output=True, text=True)
+    
+    if result.returncode != 0:
+        print(f"❌ BLENDER FAILED for {os.path.basename(object_path)}.")
+        print("--- Blender's Full Output ---\n", result.stdout, result.stderr, "\n--- End of Blender Output ---")
+        shutil.rmtree(output_dir) # Clean up on failure
+        raise subprocess.CalledProcessError(result.returncode, command, output=result.stdout, stderr=result.stderr)
+    
+    return output_dir
+
+def create_descriptor_from_images(image_dir, model_type, model_assets):
+    """
+    NEW FUNCTION 2: Loads rendered images from a directory and extracts features.
     """
     if model_assets is None:
         raise ValueError("model_assets must be provided")
 
-    # Render all views using Blender
-    rendered_images = render_with_blender(object_path, views, quality=quality)
+    # Load images from the directory
+    try:
+        image_files = sorted([f for f in os.listdir(image_dir) if f.endswith('.png')])
+        images = [Image.open(os.path.join(image_dir, f)) for f in image_files]
+        if not images:
+            print(f"⚠️ No images found in {image_dir}, returning None.")
+            return None
+    except Exception as e:
+        print(f"❌ Failed to load images from {image_dir}: {e}")
+        return None
 
     # Dispatch to the correct feature extraction function
     if model_type == 'sscd':
-        descriptor = extract_sscd_features(rendered_images, *model_assets)
+        descriptor = extract_sscd_features(images, *model_assets)
     elif model_type == 'dinov1':
-        descriptor = extract_dinov1_features(rendered_images, *model_assets)
+        descriptor = extract_dinov1_features(images, *model_assets)
     elif model_type == 'dinov2':
-        descriptor = extract_dinov2_features(rendered_images, *model_assets)
+        descriptor = extract_dinov2_features(images, *model_assets)
     elif model_type == 'sam2':
-        descriptor = extract_sam2_features(rendered_images, *model_assets)
+        descriptor = extract_sam2_features(images, *model_assets)
     elif model_type == 'clip':
-        descriptor = extract_clip_features(rendered_images, *model_assets)
+        descriptor = extract_clip_features(images, *model_assets)
     else:
         raise ValueError(f"Unknown model_type: {model_type}")
 
     return descriptor
 
-# --- Main block for standalone testing ---
+# --- Original 'generate_descriptor' and 'render_with_blender' are now removed ---
 
-if __name__ == '__main__':
-    # This main block is for testing the rendering of 150 views per model.
-    # It does not extract features, only saves the rendered images to disk.
-
-    # --- Configuration ---
-    MODEL_PATHS = ['assets/model1.glb', 'assets/model2.glb']
-    MAIN_OUTPUT_DIR = 'assets/render_images'
-    NUM_VIEWS = 50
-    RESOLUTION = 512
-
-    os.makedirs(MAIN_OUTPUT_DIR, exist_ok=True)
-
-    # --- Setup ---
-    print("--- Initializing Rendering Test ---")
-    views = generate_spherical_views(num_views=NUM_VIEWS)
-
-    # --- Process Each Model ---
-    for model_path in MODEL_PATHS:
-        if not os.path.exists(model_path):
-            print(f"⚠️ Warning: Model file not found at '{model_path}', skipping.")
-            continue
-
-        model_name = os.path.splitext(os.path.basename(model_path))[0]
-        output_view_dir = os.path.join(MAIN_OUTPUT_DIR, f'{model_name}_views_{NUM_VIEWS}')
-        os.makedirs(output_view_dir, exist_ok=True)
-
-        print(f"\n--- Processing {model_path} ---")
-
-        try:
-            # Render all views using the Blender pipeline
-            images = render_with_blender(model_path, views, resolution=RESOLUTION)
-
-            # Save the rendered images to disk for inspection
-            print(f"Saving {len(images)} rendered views to '{output_view_dir}'...")
-            for i, img in enumerate(images):
-                img.save(os.path.join(output_view_dir, f"view_{i:03d}.png"))
-
-            print(f"✅ Finished processing {model_name}.")
-
-        except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            print(f"\n❌ FAILED to process {model_name}. An error occurred during rendering.")
-            # The detailed error is already printed by the render_with_blender function
-            print("Skipping to the next model.")
-            continue
-
-    print("\nDone.")
-    print(f"All rendered images saved to '{MAIN_OUTPUT_DIR}'.")
+def save_features(features, output_path):
+    """ Saves the extracted features to a file. """
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    np.save(output_path, features)
+    print(f"✅ Features saved to {output_path}")
