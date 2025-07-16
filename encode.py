@@ -1,25 +1,44 @@
 import os
-os.environ['PYOPENGL_PLATFORM'] = 'egl'
-import trimesh
 import numpy as np
-import pyrender
 from PIL import Image
 import torch
-import torch.nn as nn
-from torchvision import transforms as pth_transforms
 from tqdm import tqdm
 from transformers import AutoImageProcessor, AutoModel, CLIPProcessor, CLIPModel
-import sys
+import subprocess
+import json
+import tempfile
+import shutil
+import torch.nn as nn
+from torchvision import transforms as pth_transforms
 import yaml
 import hydra
 from hydra.core.global_hydra import GlobalHydra
 
+# --- NOTE: Set this to the path of your Blender executable ---
+# The user specified this path.
+BLENDER_LINK = 'https://download.blender.org/release/Blender3.0/blender-3.0.1-linux-x64.tar.xz'
+BLENDER_INSTALLATION_PATH = '.'
+BLENDER_EXECUTABLE_PATH = 'blender-3.0.1-linux-x64/blender'
 
+def _install_blender():
+    if not os.path.exists(BLENDER_EXECUTABLE_PATH):
+        os.system('sudo apt-get update -y')
+        os.system('sudo apt-get install -y libxrender1 libxi6 libxkbcommon-x11-0 libsm6')
+        os.system(f'wget {BLENDER_LINK} -P {BLENDER_INSTALLATION_PATH}')
+        os.system(f'tar -xvf {BLENDER_INSTALLATION_PATH}/blender-3.0.1-linux-x64.tar.xz -C {BLENDER_INSTALLATION_PATH}')
+        os.system(f'rm -rf {BLENDER_INSTALLATION_PATH}/blender-3.0.1-linux-x64.tar.xz')
 
 # --- Import SAM2 ---
-from sam2.build_sam import build_sam2
-from sam2.sam2_image_predictor import SAM2ImagePredictor
+try:
+    from sam2.build_sam import build_sam2
+    from sam2.sam2_image_predictor import SAM2ImagePredictor
+    SAM2_AVAILABLE = True
+except ImportError:
+    SAM2_AVAILABLE = False
+    print("⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.")
 
+
+# --- All Model Loading Functions ---
 
 def load_sscd_model(model_path):
     """Loads a TorchScript model for SSCD."""
@@ -57,318 +76,240 @@ def load_clip_model():
     print(f"✅ CLIP model loaded on {device}.")
     return (processor, model, device)
 
-
-
-
-# --- NEW: Function to load the SAM2 model ---
 def load_sam2_model(config_path, checkpoint_path):
     """Loads the SAM2 model and predictor from a config and checkpoint."""
+    if not SAM2_AVAILABLE:
+        raise RuntimeError("SAM2 library is not installed. Cannot load SAM2 model.")
     print("Loading SAM2 model...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    
-    # Load model configuration
-    # with open(config_path, 'r') as f:
-        # model_cfg = yaml.safe_load(f)
 
     config_dir = os.path.abspath(os.path.dirname(config_path))
     config_name = os.path.basename(config_path)
     GlobalHydra.instance().clear()
-    # Use hydra's context manager to temporarily set the config search path
     with hydra.initialize_config_dir(config_dir=config_dir, version_base=None):
-        # Now, build_sam2 will find the config file in the directory we specified.
-        # We pass only the filename to build_sam2.
         sam2_model = build_sam2(config_name, checkpoint_path).to(device)
-    
-    # Create the predictor
+
     predictor = SAM2ImagePredictor(sam2_model)
-    
     print(f"✅ SAM2 model loaded on {device}.")
     return predictor, device
 
 
+# --- Blender Rendering Functions ---
 
-def load_camera_positions(directory, num_rigs=10):
+def generate_spherical_views(num_views=150, radius=2.5, fov_deg=50):
     """
-    Loads camera positions from .obj files, structuring them by rig.
-    This is required for the test.py script.
+    Generates a list of view dictionaries for Blender.
     """
-    camera_rigs = []
-    print(f"Loading {num_rigs} camera rigs from '{directory}'...")
-    for i in range(num_rigs):
-        cam_file = os.path.join(directory, f'12_{i}.obj')
-        if os.path.exists(cam_file):
-            # Each file contains vertices for one camera rig. We take the first 10.
-            cam_mesh = trimesh.load(cam_file, force='mesh')
-            camera_rigs.append(cam_mesh.vertices[:10])
-    if not camera_rigs:
-        print(f"❌ Error: No camera rigs found in '{directory}'.")
-        sys.exit(1)
-    print(f"✅ Loaded {len(camera_rigs)} camera rigs, each with {camera_rigs[0].shape[0]} views.")
-    return camera_rigs
+    views = []
+    phi = np.pi * (3. - np.sqrt(5.))
 
-def create_view_matrix(camera_position, target, up_vector, distance=1.2):
+    for i in range(num_views):
+        y = 1 - (i / float(num_views - 1)) * 2
+        r = np.sqrt(1 - y * y)
+        theta = phi * i
+        pitch = np.arcsin(y)
+        yaw = theta
+
+        views.append({
+            'yaw': yaw, 'pitch': pitch, 'radius': radius, 'fov': np.deg2rad(fov_deg)
+        })
+    print(f"✅ Generated {num_views} camera views for Blender.")
+    return views
+
+def render_with_blender(object_path, views, resolution=512, quality='FAST'):
     """
-    Creates a view matrix (world-to-camera).
-    This matrix positions the camera to look at the target from a specific point.
+    Calls the Blender script as a subprocess to render views.
+    It now captures output and only prints it if an error occurs.
     """
-    camera_position = camera_position * distance
-    forward = target - camera_position
-    if np.linalg.norm(forward) < 1e-6: return np.eye(4)
-    forward /= np.linalg.norm(forward)
-    right = np.cross(forward, up_vector)
-    if np.linalg.norm(right) < 1e-6:
-        if abs(forward[1]) > 0.99:
-            right = np.cross(forward, [0, 0, 1])
-        else:
-            right = np.cross(forward, [0, 1, 0])
-    right /= np.linalg.norm(right)
-    new_up = np.cross(right, forward)
-    new_up /= np.linalg.norm(new_up)
-    matrix = np.eye(4)
-    matrix[0,:3], matrix[1,:3], matrix[2,:3] = right, new_up, -forward
-    matrix[:3, 3] = -np.dot(matrix[:3,:3], camera_position)
-    return matrix
+    if not os.path.exists(BLENDER_EXECUTABLE_PATH):
+        _install_blender()
 
-def setup_scene(mesh):
-    """
-    Creates a pyrender scene with a transparent background, neutral material,
-    and strong lighting, inspired by the Blender script.
-    """
-    # 1. Define a neutral, off-white material since the GLB has no material info.
-    material = pyrender.MetallicRoughnessMaterial(
-        baseColorFactor=[0.8, 0.8, 0.8, 1.0], # Light grey color
-        metallicFactor=0.1,
-        roughnessFactor=0.7
-    )
-    render_mesh = pyrender.Mesh.from_trimesh(mesh, material=material)
-    
-    # 2. Set up the scene with a transparent background.
-    scene = pyrender.Scene(
-        bg_color=[0.0, 0.0, 0.0, 0.0], # Transparent RGBA
-        ambient_light=[0.3, 0.3, 0.3]
-    )
-    scene.add(render_mesh)
-    
-    # 3. Add a strong key light from above, similar to Blender's AREA light.
-    key_light = pyrender.PointLight(color=np.ones(3), intensity=10.0)
-    light_pose = np.eye(4)
-    light_pose[2, 3] = 4.0 # Position light above the object
-    scene.add(key_light, pose=light_pose, name='light')
+    with tempfile.TemporaryDirectory() as temp_dir:
+        views_json = json.dumps(views)
+        blender_script_path = os.path.join(os.path.dirname(__file__), 'render_blender.py')
 
-    # 4. Use an orthographic camera to match the LFD paper's methodology.
-    camera = pyrender.OrthographicCamera(xmag=1.0, ymag=1.0, znear=0.01, zfar=100.0)
-    scene.add(camera, name='camera')
+        command = [
+            'xvfb-run', '-a', # Use a virtual display for headless EEVEE
+            BLENDER_EXECUTABLE_PATH, '--background', '--python', blender_script_path,
+            '--', '--object', object_path, '--output_folder', temp_dir,
+            '--views', views_json, '--resolution', str(resolution), '--quality', quality
+        ]
+        
+        print(f"--- Calling Blender for {os.path.basename(object_path)} (Quality: {quality}) ---")
+        
+        # Run the process and wait for it to complete, capturing all output.
+        result = subprocess.run(command, capture_output=True, text=True)
+        
+        # Check if the process failed.
+        if result.returncode != 0:
+            print(f"❌ BLENDER FAILED for {os.path.basename(object_path)}.")
+            print("--- Blender's Full Output ---")
+            # Print the combined stdout and stderr to show the error.
+            print(result.stdout)
+            print(result.stderr)
+            print("--- End of Blender Output ---")
+            raise subprocess.CalledProcessError(result.returncode, command, output=result.stdout, stderr=result.stderr)
+        
+        # If successful, load the images.
+        images = [Image.open(os.path.join(temp_dir, f'{i:03d}.png')) for i in range(len(views)) if os.path.exists(os.path.join(temp_dir, f'{i:03d}.png'))]
+        
+        if len(images) != len(views):
+            print(f"⚠️ Warning: Expected {len(views)} rendered images, but found {len(images)}.")
+            print("This might indicate a problem during rendering. Full Blender log:")
+            print(result.stdout) # Print log if image count mismatches
 
-    return scene
+        return images
 
 
-# --- Feature Extraction Functions ---
+# --- All Feature Extraction Functions ---
 
 def extract_sscd_features(images, model, device):
-    """Extracts features using a TorchScript SSCD model."""
-    # Define the preprocessing pipeline from the documentation
     preprocess = pth_transforms.Compose([
-        pth_transforms.Resize(288),
-        pth_transforms.ToTensor(),
+        pth_transforms.Resize(288), pth_transforms.ToTensor(),
         pth_transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
-    
     feature_list = []
     with torch.no_grad():
-        for image in images:
-            rgb_image = image.convert("RGB")
-            
-            # Preprocess the image and add a batch dimension
-            batch = preprocess(rgb_image).unsqueeze(0).to(device)
-            
-            # Get the embedding
+        for image in tqdm(images, desc="Extracting SSCD Features"):
+            batch = preprocess(image.convert("RGB")).unsqueeze(0).to(device)
             embedding = model(batch)[0, :]
             feature_list.append(embedding.cpu().numpy())
-            
     return np.vstack(feature_list)
 
-
 def extract_dinov1_features(images, processor, model, device):
-    """
-    Extracts DINOv1 features using the GeM pooling + CLS token method.
-    """
     feature_list = []
+    batch_size = 16
     with torch.no_grad():
-        for image in images:
-            rgb_image = image.convert("RGB")
-            inputs = processor(images=rgb_image, return_tensors="pt").to(device)
-            
+        for i in tqdm(range(0, len(images), batch_size), desc="Extracting DINOv1 Features"):
+            batch_images = [img.convert("RGB") for img in images[i:i+batch_size]]
+            inputs = processor(images=batch_images, return_tensors="pt", padding=True).to(device)
             outputs = model(**inputs)
             last_hidden_state = outputs.last_hidden_state
-            
             cls_token = last_hidden_state[:, 0, :]
             patch_tokens = last_hidden_state[:, 1:, :]
-
             patch_size = model.config.patch_size
             patch_h = inputs.pixel_values.shape[2] // patch_size
             patch_w = inputs.pixel_values.shape[3] // patch_size
-            
             b, _, d = patch_tokens.shape
             patch_tokens_grid = patch_tokens.reshape(b, patch_h, patch_w, d).permute(0, 3, 1, 2)
-            
-            # Using power of 4 as in the original copy detection script
             gem_pooled = nn.functional.avg_pool2d(patch_tokens_grid.clamp(min=1e-6).pow(4), (patch_h, patch_w)).pow(1./4)
             gem_pooled = gem_pooled.reshape(b, -1)
-
             final_feature = torch.cat((cls_token, gem_pooled), dim=1)
             feature_list.append(final_feature.cpu().numpy())
-
     return np.vstack(feature_list)
 
-
-def extract_dino_features(images, processor, model, device):
-    # This is the advanced extractor for DinoV2
-    return extract_dinov1_features(images, processor, model, device)
+def extract_dinov2_features(images, processor, model, device):
+    feature_list = []
+    batch_size = 16
+    with torch.no_grad():
+        for i in tqdm(range(0, len(images), batch_size), desc="Extracting DINOv2 Features"):
+            batch_images = [img.convert("RGB") for img in images[i:i+batch_size]]
+            inputs = processor(images=batch_images, return_tensors="pt", padding=True).to(device)
+            outputs = model(**inputs)
+            cls_tokens = outputs.last_hidden_state[:, 0, :]
+            feature_list.append(cls_tokens.cpu().numpy())
+    return np.vstack(feature_list)
 
 def extract_clip_features(images, processor, model, device):
     feature_list = []
+    batch_size = 16
     with torch.no_grad():
-        for image in images:
-            rgb_image = image.convert("RGB")
-            inputs = processor(images=rgb_image, return_tensors="pt").to(device)
+        for i in tqdm(range(0, len(images), batch_size), desc="Extracting CLIP Features"):
+            batch_images = [img.convert("RGB") for img in images[i:i+batch_size]]
+            inputs = processor(images=batch_images, return_tensors="pt", padding=True).to(device)
             vision_outputs = model.vision_model(**inputs)
-            last_hidden_state = vision_outputs.last_hidden_state
-            cls_token = last_hidden_state[:, 0, :]
-            patch_tokens = last_hidden_state[:, 1:, :]
-            patch_size = model.config.vision_config.patch_size
-            patch_h = inputs.pixel_values.shape[2] // patch_size
-            patch_w = inputs.pixel_values.shape[3] // patch_size
-            b, _, d = patch_tokens.shape
-            patch_tokens_grid = patch_tokens.reshape(b, patch_h, patch_w, d).permute(0, 3, 1, 2)
-            gem_pooled = nn.functional.avg_pool2d(patch_tokens_grid.clamp(min=1e-6).pow(3), (patch_h, patch_w)).pow(1./3)
-            gem_pooled = gem_pooled.reshape(b, -1)
-            final_feature = torch.cat((cls_token, gem_pooled), dim=1)
-            feature_list.append(final_feature.cpu().numpy())
+            cls_tokens = vision_outputs.last_hidden_state[:, 0, :]
+            feature_list.append(cls_tokens.cpu().numpy())
     return np.vstack(feature_list)
 
-
 def extract_sam2_features(images, predictor, device):
-    """Extracts SAM2 features from a list of PIL Images."""
+    if not SAM2_AVAILABLE:
+        raise RuntimeError("SAM2 library is not installed. Cannot extract SAM2 features.")
     feature_list = []
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-        for image in images:
-            rgb_image = image.convert("RGB")
-            predictor.set_image(np.array(rgb_image))
+        for image in tqdm(images, desc="Extracting SAM2 Features"):
+            predictor.set_image(np.array(image.convert("RGB")))
             feature_map = predictor._features["image_embed"]
             feature_vector = feature_map.mean(dim=[-1, -2]).squeeze()
             feature_list.append(feature_vector.cpu().numpy())
     return np.vstack(feature_list)
 
 
-# --- Main Generation and Helper Functions ---
-def generate_features(mesh, camera_rigs, renderer, model_type='dinov2', model_assets=None):
-    """Generates a structured set of features using the specified model type."""
+# --- Main Descriptor Generation Function ---
+
+def generate_descriptor(object_path, views, model_type, model_assets, quality='FAST'):
+    """
+    Generates a single descriptor (set of features) for a 3D model by
+    rendering it with Blender and then extracting features.
+    """
     if model_assets is None:
         raise ValueError("model_assets must be provided")
 
-    mesh.apply_translation(-mesh.bounds.mean(axis=0))
-    radius = np.linalg.norm(mesh.vertices, axis=1).max()
-    if radius > 1e-6:
-        mesh.apply_scale(1.0 / radius)
+    # Render all views using Blender
+    rendered_images = render_with_blender(object_path, views, quality=quality)
 
-    all_descriptors = []
-    for rig_cameras in tqdm(camera_rigs, desc=f"Encoding with {model_type}"):
-        rendered_images = render_and_capture_views(mesh, rig_cameras, renderer)
-        
-        if model_type == 'sscd':
-            model, device = model_assets
-            descriptor_features = extract_sscd_features(rendered_images, model, device)
-        elif model_type == 'dinov1':
-            descriptor_features = extract_dinov1_features(*([rendered_images] + list(model_assets)))
-        elif model_type == 'dinov2':
-            descriptor_features = extract_dino_features(*([rendered_images] + list(model_assets)))
-        elif model_type == 'sam2':
-            descriptor_features = extract_sam2_features(*([rendered_images] + list(model_assets)))
-        elif model_type == 'clip':
-            descriptor_features = extract_clip_features(*([rendered_images] + list(model_assets)))
-        else:
-            raise ValueError(f"Unknown model_type: {model_type}")
+    # Dispatch to the correct feature extraction function
+    if model_type == 'sscd':
+        descriptor = extract_sscd_features(rendered_images, *model_assets)
+    elif model_type == 'dinov1':
+        descriptor = extract_dinov1_features(rendered_images, *model_assets)
+    elif model_type == 'dinov2':
+        descriptor = extract_dinov2_features(rendered_images, *model_assets)
+    elif model_type == 'sam2':
+        descriptor = extract_sam2_features(rendered_images, *model_assets)
+    elif model_type == 'clip':
+        descriptor = extract_clip_features(rendered_images, *model_assets)
+    else:
+        raise ValueError(f"Unknown model_type: {model_type}")
 
-        all_descriptors.append(descriptor_features)
-            
-    return np.array(all_descriptors)
+    return descriptor
 
-
-def render_and_capture_views(mesh, camera_positions, renderer, distance=1.2):
-    """
-    Renders a mesh from multiple viewpoints and returns in-memory PIL images.
-    This version does not save files, it just returns the image objects.
-    """
-    scene = setup_scene(mesh)
-    camera_node = next(iter(scene.get_nodes(name='camera')))
-    light_node  = next(iter(scene.get_nodes(name='light')))
-    target, up = np.array([0, 0, 0]), np.array([0, 1, 0])
-    captured_images = []
-    for pos in camera_positions:
-        view_matrix = create_view_matrix(pos, target, up, distance)
-        cam_pose = np.linalg.inv(view_matrix)
-        scene.set_pose(camera_node, cam_pose)
-        scene.set_pose(light_node,  cam_pose)
-        color, _ = renderer.render(scene, flags=pyrender.RenderFlags.RGBA)
-        captured_images.append(Image.fromarray(color, 'RGBA'))
-    return captured_images
-
-def save_features(features, output_file):
-    """
-    Saves the features to a file. Required by test.py.
-    """
-    print(f"Saving features to '{output_file}'...")
-    np.save(output_file, features)
-    print(f"✅ Features saved with shape {features.shape}.")
+# --- Main block for standalone testing ---
 
 if __name__ == '__main__':
-    # This main block is for simple rendering and saving of single feature sets,
-    # not the full LFD generation which is handled by test.py
+    # This main block is for testing the rendering of 150 views per model.
+    # It does not extract features, only saves the rendered images to disk.
+
     # --- Configuration ---
     MODEL_PATHS = ['assets/model1.glb', 'assets/model2.glb']
-    CAMERA_DATA_DIR = 'data'
     MAIN_OUTPUT_DIR = 'assets/render_images'
-    # FEATURES_DIR = 'features'
-    
+    NUM_VIEWS = 50
+    RESOLUTION = 512
+
     os.makedirs(MAIN_OUTPUT_DIR, exist_ok=True)
-    # os.makedirs(FEATURES_DIR, exist_ok=True)
 
     # --- Setup ---
-    cam_file = os.path.join(CAMERA_DATA_DIR, '12_0.obj')
-    if not os.path.exists(cam_file):
-        print(f"❌ Error: Camera file not found at '{cam_file}'")
-        sys.exit(1)
-        
-    camera_positions = trimesh.load(cam_file, force='mesh').vertices[:10]
-    renderer = pyrender.OffscreenRenderer(256, 256)
-    # processor, model, device = load_dinov2_model()
+    print("--- Initializing Rendering Test ---")
+    views = generate_spherical_views(num_views=NUM_VIEWS)
 
     # --- Process Each Model ---
     for model_path in MODEL_PATHS:
+        if not os.path.exists(model_path):
+            print(f"⚠️ Warning: Model file not found at '{model_path}', skipping.")
+            continue
+
         model_name = os.path.splitext(os.path.basename(model_path))[0]
-        output_view_dir = os.path.join(MAIN_OUTPUT_DIR, f'{model_name}_views')
+        output_view_dir = os.path.join(MAIN_OUTPUT_DIR, f'{model_name}_views_{NUM_VIEWS}')
         os.makedirs(output_view_dir, exist_ok=True)
-        
+
         print(f"\n--- Processing {model_path} ---")
-        mesh = trimesh.load(model_path, force='mesh')
-        mesh.apply_translation(-mesh.bounds.mean(axis=0))
-        radius = np.linalg.norm(mesh.vertices, axis=1).max()
-        mesh.apply_scale(1.0 / radius)
 
-        # 1. Render views and save them to disk
-        images = render_and_capture_views(mesh, camera_positions, renderer)
-        print(f"Saving {len(images)} rendered views to '{output_view_dir}'...")
-        for i, img in enumerate(images):
-            img.save(os.path.join(output_view_dir, f"view_{i:02d}.png"))
-        
-        # # 2. Extract features from the in-memory images
-        # features = extract_features(images, processor, model, device)
-        
-        # # 3. Save the features
-        # feature_filename = os.path.join(FEATURES_DIR, f'{model_name}_features.npy')
-        # np.save(feature_filename, features)
-        # print(f"✅ Single feature set for {model_name} saved to {feature_filename} with shape {features.shape}")
+        try:
+            # Render all views using the Blender pipeline
+            images = render_with_blender(model_path, views, resolution=RESOLUTION)
 
-    # --- Cleanup ---
-    renderer.delete()
+            # Save the rendered images to disk for inspection
+            print(f"Saving {len(images)} rendered views to '{output_view_dir}'...")
+            for i, img in enumerate(images):
+                img.save(os.path.join(output_view_dir, f"view_{i:03d}.png"))
+
+            print(f"✅ Finished processing {model_name}.")
+
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            print(f"\n❌ FAILED to process {model_name}. An error occurred during rendering.")
+            # The detailed error is already printed by the render_with_blender function
+            print("Skipping to the next model.")
+            continue
+
     print("\nDone.")
+    print(f"All rendered images saved to '{MAIN_OUTPUT_DIR}'.")

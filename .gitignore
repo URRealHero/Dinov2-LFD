@@ -1,2 +1,5 @@
 checkpoints/
 __pycache__/
+features/
+blender-3.0.1-linux-x64/
+render_images/
