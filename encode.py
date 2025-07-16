@@ -5,6 +5,8 @@ import numpy as np
 import pyrender
 from PIL import Image
 import torch
+import torch.nn as nn
+from torchvision import transforms as pth_transforms
 from tqdm import tqdm
 from transformers import AutoImageProcessor, AutoModel, CLIPProcessor, CLIPModel
 import sys
@@ -13,9 +15,29 @@ import hydra
 from hydra.core.global_hydra import GlobalHydra
 
 
+
 # --- Import SAM2 ---
 from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
+
+
+def load_sscd_model(model_path):
+    """Loads a TorchScript model for SSCD."""
+    print("Loading SSCD TorchScript model...")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = torch.jit.load(model_path).to(device)
+    model.eval()
+    print(f"✅ SSCD model loaded on {device}.")
+    return (model, device)
+
+def load_dinov1_model():
+    """Loads the DINOv1 model and image processor from Hugging Face."""
+    print("Loading DinoV1 model...")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    processor = AutoImageProcessor.from_pretrained("facebook/dino-vitb8")
+    model = AutoModel.from_pretrained("facebook/dino-vitb8").to(device)
+    print(f"✅ DinoV1 model loaded on {device}.")
+    return (processor, model, device)
 
 def load_dinov2_model():
     """Loads the DinoV2 model and image processor from Hugging Face."""
@@ -35,17 +57,6 @@ def load_clip_model():
     print(f"✅ CLIP model loaded on {device}.")
     return (processor, model, device)
 
-def extract_clip_features(images, processor, model, device):
-    """Extracts CLIP features from a list of PIL Images."""
-    feature_list = []
-    with torch.no_grad():
-        for image in images:
-            rgb_image = image.convert("RGB")
-            inputs = processor(images=rgb_image, return_tensors="pt").to(device)
-            # Get the pooled image features
-            features = model.get_image_features(**inputs)
-            feature_list.append(features.cpu().numpy())
-    return np.vstack(feature_list)
 
 
 
@@ -151,47 +162,137 @@ def setup_scene(mesh):
     return scene
 
 
-def extract_dino_features(images, processor, model, device):
+# --- Feature Extraction Functions ---
+
+def extract_sscd_features(images, model, device):
+    """Extracts features using a TorchScript SSCD model."""
+    # Define the preprocessing pipeline from the documentation
+    preprocess = pth_transforms.Compose([
+        pth_transforms.Resize(288),
+        pth_transforms.ToTensor(),
+        pth_transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    
+    feature_list = []
+    with torch.no_grad():
+        for image in images:
+            rgb_image = image.convert("RGB")
+            
+            # Preprocess the image and add a batch dimension
+            batch = preprocess(rgb_image).unsqueeze(0).to(device)
+            
+            # Get the embedding
+            embedding = model(batch)[0, :]
+            feature_list.append(embedding.cpu().numpy())
+            
+    return np.vstack(feature_list)
+
+
+def extract_dinov1_features(images, processor, model, device):
     """
-    Extracts DinoV2 features from a list of PIL Images.
+    Extracts DINOv1 features using the GeM pooling + CLS token method.
     """
     feature_list = []
     with torch.no_grad():
         for image in images:
-            # Convert RGBA image to RGB before processing
             rgb_image = image.convert("RGB")
             inputs = processor(images=rgb_image, return_tensors="pt").to(device)
+            
             outputs = model(**inputs)
-            features = outputs.last_hidden_state[:, 0].detach().cpu().numpy()
-            feature_list.append(features)
+            last_hidden_state = outputs.last_hidden_state
+            
+            cls_token = last_hidden_state[:, 0, :]
+            patch_tokens = last_hidden_state[:, 1:, :]
+
+            patch_size = model.config.patch_size
+            patch_h = inputs.pixel_values.shape[2] // patch_size
+            patch_w = inputs.pixel_values.shape[3] // patch_size
+            
+            b, _, d = patch_tokens.shape
+            patch_tokens_grid = patch_tokens.reshape(b, patch_h, patch_w, d).permute(0, 3, 1, 2)
+            
+            # Using power of 4 as in the original copy detection script
+            gem_pooled = nn.functional.avg_pool2d(patch_tokens_grid.clamp(min=1e-6).pow(4), (patch_h, patch_w)).pow(1./4)
+            gem_pooled = gem_pooled.reshape(b, -1)
+
+            final_feature = torch.cat((cls_token, gem_pooled), dim=1)
+            feature_list.append(final_feature.cpu().numpy())
+
     return np.vstack(feature_list)
 
-# --- NEW: Function to extract features using SAM2 ---
-def extract_sam2_features(images, predictor, device):
-    """
-    Extracts SAM2 features from a list of PIL Images.
-    """
+
+def extract_dino_features(images, processor, model, device):
+    # This is the advanced extractor for DinoV2
+    return extract_dinov1_features(images, processor, model, device)
+
+def extract_clip_features(images, processor, model, device):
     feature_list = []
-    print("Extracting features with SAM2...")
+    with torch.no_grad():
+        for image in images:
+            rgb_image = image.convert("RGB")
+            inputs = processor(images=rgb_image, return_tensors="pt").to(device)
+            vision_outputs = model.vision_model(**inputs)
+            last_hidden_state = vision_outputs.last_hidden_state
+            cls_token = last_hidden_state[:, 0, :]
+            patch_tokens = last_hidden_state[:, 1:, :]
+            patch_size = model.config.vision_config.patch_size
+            patch_h = inputs.pixel_values.shape[2] // patch_size
+            patch_w = inputs.pixel_values.shape[3] // patch_size
+            b, _, d = patch_tokens.shape
+            patch_tokens_grid = patch_tokens.reshape(b, patch_h, patch_w, d).permute(0, 3, 1, 2)
+            gem_pooled = nn.functional.avg_pool2d(patch_tokens_grid.clamp(min=1e-6).pow(3), (patch_h, patch_w)).pow(1./3)
+            gem_pooled = gem_pooled.reshape(b, -1)
+            final_feature = torch.cat((cls_token, gem_pooled), dim=1)
+            feature_list.append(final_feature.cpu().numpy())
+    return np.vstack(feature_list)
+
+
+def extract_sam2_features(images, predictor, device):
+    """Extracts SAM2 features from a list of PIL Images."""
+    feature_list = []
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
         for image in images:
-            # 1. Set the image in the predictor
-            # The image must be converted to a numpy array of shape (H, W, 3)
             rgb_image = image.convert("RGB")
             predictor.set_image(np.array(rgb_image))
-
-            # 2. Access the feature maps
-            # We use the main 'image_embed' feature map
             feature_map = predictor._features["image_embed"]
-
-            # 3. Convert the feature map to a single vector using Global Average Pooling
-            # The feature_map shape is (1, C, H, W). We average over H and W.
             feature_vector = feature_map.mean(dim=[-1, -2]).squeeze()
-            
-            # 4. Convert to numpy and append
             feature_list.append(feature_vector.cpu().numpy())
-            
     return np.vstack(feature_list)
+
+
+# --- Main Generation and Helper Functions ---
+def generate_features(mesh, camera_rigs, renderer, model_type='dinov2', model_assets=None):
+    """Generates a structured set of features using the specified model type."""
+    if model_assets is None:
+        raise ValueError("model_assets must be provided")
+
+    mesh.apply_translation(-mesh.bounds.mean(axis=0))
+    radius = np.linalg.norm(mesh.vertices, axis=1).max()
+    if radius > 1e-6:
+        mesh.apply_scale(1.0 / radius)
+
+    all_descriptors = []
+    for rig_cameras in tqdm(camera_rigs, desc=f"Encoding with {model_type}"):
+        rendered_images = render_and_capture_views(mesh, rig_cameras, renderer)
+        
+        if model_type == 'sscd':
+            model, device = model_assets
+            descriptor_features = extract_sscd_features(rendered_images, model, device)
+        elif model_type == 'dinov1':
+            descriptor_features = extract_dinov1_features(*([rendered_images] + list(model_assets)))
+        elif model_type == 'dinov2':
+            descriptor_features = extract_dino_features(*([rendered_images] + list(model_assets)))
+        elif model_type == 'sam2':
+            descriptor_features = extract_sam2_features(*([rendered_images] + list(model_assets)))
+        elif model_type == 'clip':
+            descriptor_features = extract_clip_features(*([rendered_images] + list(model_assets)))
+        else:
+            raise ValueError(f"Unknown model_type: {model_type}")
+
+        all_descriptors.append(descriptor_features)
+            
+    return np.array(all_descriptors)
+
 
 def render_and_capture_views(mesh, camera_positions, renderer, distance=1.2):
     """
@@ -211,41 +312,6 @@ def render_and_capture_views(mesh, camera_positions, renderer, distance=1.2):
         color, _ = renderer.render(scene, flags=pyrender.RenderFlags.RGBA)
         captured_images.append(Image.fromarray(color, 'RGBA'))
     return captured_images
-
-# --- Main Generation Function (MODIFIED) ---
-def generate_features(mesh, camera_rigs, renderer, model_type='dinov2', model_assets=None):
-    """
-    Generates a structured set of features using the specified model type.
-    """
-    if model_assets is None:
-        raise ValueError("model_assets must be provided (the loaded model objects).")
-
-    # --- Normalise Mesh ---
-    mesh.apply_translation(-mesh.bounds.mean(axis=0))
-    radius = np.linalg.norm(mesh.vertices, axis=1).max()
-    if radius > 1e-6:
-        mesh.apply_scale(1.0 / radius)
-
-    all_descriptors = []
-    for rig_cameras in tqdm(camera_rigs, desc=f"Encoding with {model_type}"):
-        rendered_images = render_and_capture_views(mesh, rig_cameras, renderer)
-        
-        # --- NEW: Switch between feature extractors ---
-        if model_type == 'dinov2':
-            processor, model, device = model_assets
-            descriptor_features = extract_dino_features(rendered_images, processor, model, device)
-        elif model_type == 'sam2':
-            predictor, device = model_assets
-            descriptor_features = extract_sam2_features(rendered_images, predictor, device)
-        elif model_type == 'clip':
-            processor, model, device = model_assets
-            descriptor_features = extract_clip_features(rendered_images, processor, model, device)
-        else:
-            raise ValueError(f"Unknown model_type: {model_type}")
-
-        all_descriptors.append(descriptor_features)
-            
-    return np.array(all_descriptors)
 
 def save_features(features, output_file):
     """
