@@ -1,0 +1,47 @@
+--- Starting SLURM Job ---
+Job ID: 66572741 | Array Task ID: 24 / 100
+Running on host: della-i14g7
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 24/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 24/100: Found 235767 total models in source.
+TASK 24/100: This task is responsible for 2358 models.
+TASK 24/100: Skipping 0 completed models.
+TASK 24/100: ➡️ Found 2358 new models to process.
+
+--- 🧠 TASK 24: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 24: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 24: Processing Batch 1 / 3
+--- 🚀 TASK 24: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/175568c3122ba268a34b0c34cee13960ba2c39218cd7227ce2e2eec4f6d267d4/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/e8c30bb719d4592bc4bf8c5490d40c5117edb8272d53ab9a4c9ab8448344ee0e/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 24: Rendering for batch complete in 309.05s. ---
+--- ⚙️ TASK 24: Encoding rendered images for the batch... ---
+--- ✅ TASK 24: Batch 1 complete. Processed 998 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 24: Processing Batch 2 / 3
+--- 🚀 TASK 24: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/392c42c034c39309c22bcded5cce49076a885ccff678a1e39c675e4f2b035d81/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 24: Rendering for batch complete in 310.47s. ---
+--- ⚙️ TASK 24: Encoding rendered images for the batch... ---
+--- ✅ TASK 24: Batch 2 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 24: Processing Batch 3 / 3
+--- 🚀 TASK 24: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 24: Rendering for batch complete in 109.19s. ---
+--- ⚙️ TASK 24: Encoding rendered images for the batch... ---
+--- ✅ TASK 24: Batch 3 complete. Processed 358 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 24: All Batches Complete! ✨
+Successfully processed 2355 models in this task.
+Total time elapsed for this task: 6546.06 seconds.
+--- Task 24 Finished ---

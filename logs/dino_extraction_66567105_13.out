@@ -1,0 +1,47 @@
+--- Starting SLURM Job ---
+Job ID: 66571588 | Array Task ID: 13 / 100
+Running on host: della-i14g12
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 13/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 13/100: Found 235767 total models in source.
+TASK 13/100: This task is responsible for 2358 models.
+TASK 13/100: Skipping 0 completed models.
+TASK 13/100: ➡️ Found 2358 new models to process.
+
+--- 🧠 TASK 13: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 13: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 13: Processing Batch 1 / 3
+--- 🚀 TASK 13: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/580b2d154a7a2d06719f1ee0307e5f9d5326f21ae267c2a25d013cb5bdfd9790/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/c547b564062f5fd12da73d2eed129c37cc5820adece11b33b37c26fb4bea7afa/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 13: Rendering for batch complete in 302.89s. ---
+--- ⚙️ TASK 13: Encoding rendered images for the batch... ---
+--- ✅ TASK 13: Batch 1 complete. Processed 998 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 13: Processing Batch 2 / 3
+--- 🚀 TASK 13: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/d5fafd2cce36113a86a62485f3cf0978b5a96d778dbcbb0a5e84320e0a80360e/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 13: Rendering for batch complete in 312.89s. ---
+--- ⚙️ TASK 13: Encoding rendered images for the batch... ---
+--- ✅ TASK 13: Batch 2 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 13: Processing Batch 3 / 3
+--- 🚀 TASK 13: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 13: Rendering for batch complete in 113.49s. ---
+--- ⚙️ TASK 13: Encoding rendered images for the batch... ---
+--- ✅ TASK 13: Batch 3 complete. Processed 358 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 13: All Batches Complete! ✨
+Successfully processed 2355 models in this task.
+Total time elapsed for this task: 6557.42 seconds.
+--- Task 13 Finished ---

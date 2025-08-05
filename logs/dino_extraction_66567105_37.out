@@ -1,0 +1,45 @@
+--- Starting SLURM Job ---
+Job ID: 66574469 | Array Task ID: 37 / 100
+Running on host: della-l01g8
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 37/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 37/100: Found 235767 total models in source.
+TASK 37/100: This task is responsible for 2358 models.
+TASK 37/100: Skipping 0 completed models.
+TASK 37/100: ➡️ Found 2358 new models to process.
+
+--- 🧠 TASK 37: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 37: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 37: Processing Batch 1 / 3
+--- 🚀 TASK 37: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/fc0f702c173e9dfff11fd409558f25b39420850f5783e343fd2bd1984b1c3992/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 37: Rendering for batch complete in 950.63s. ---
+--- ⚙️ TASK 37: Encoding rendered images for the batch... ---
+--- ✅ TASK 37: Batch 1 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 37: Processing Batch 2 / 3
+--- 🚀 TASK 37: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 37: Rendering for batch complete in 1042.00s. ---
+--- ⚙️ TASK 37: Encoding rendered images for the batch... ---
+--- ✅ TASK 37: Batch 2 complete. Processed 1000 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 37: Processing Batch 3 / 3
+--- 🚀 TASK 37: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 37: Rendering for batch complete in 358.58s. ---
+--- ⚙️ TASK 37: Encoding rendered images for the batch... ---
+--- ✅ TASK 37: Batch 3 complete. Processed 358 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 37: All Batches Complete! ✨
+Successfully processed 2357 models in this task.
+Total time elapsed for this task: 13991.89 seconds.
+--- Task 37 Finished ---

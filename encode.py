@@ -1,4 +1,6 @@
 import os
+os.environ['HF_HOME'] = '/scratch/gpfs/bz1474/sp2526/huggingface_cache'  # Set Hugging Face cache directory
+os.environ['PYOPENGL_PLATFORM'] = 'egl'  # Use EGL for OpenGL context
 import numpy as np
 from PIL import Image
 import torch
@@ -13,6 +15,9 @@ from torchvision import transforms as pth_transforms
 import yaml
 import hydra
 from hydra.core.global_hydra import GlobalHydra
+import trimesh
+import pyrender
+import math
 
 # --- NOTE: Set this to the path of your Blender executable ---
 BLENDER_LINK = 'https://download.blender.org/release/Blender3.0/blender-3.0.1-linux-x64.tar.xz'
@@ -140,7 +145,7 @@ def extract_dinov2_features(images, processor, model, device):
             img_batch = images[i : i + batch_size]
             if not img_batch: continue
 
-            inputs = processor(images=[img.convert("RGB") for img in img_batch], return_tensors="pt", padding=True).to(device)
+            inputs = processor(images=[img.convert("RGB") for img in img_batch], return_tensors="pt").to(device)
             cls_tokens = model(**inputs).last_hidden_state[:, 0, :]
             feature_list.append(cls_tokens.cpu().numpy())
     return np.vstack(feature_list)
@@ -175,37 +180,107 @@ def extract_sam2_features(images, predictor, device):
 # --- REFACTORED LOGIC: The two new functions for the split logic ---
 # ------------------------------------------------------------------
 
-def render_views_to_tempdir(object_path, views, quality='FAST', resolution=512):
+def create_look_at_pose(eye, target, up):
     """
-    NEW FUNCTION 1: Renders views and saves them to a persistent temporary directory.
-    It returns the path to this directory. The caller is responsible for cleanup.
+    Generates a 4x4 camera-to-world pose matrix.
+    This implementation is a replacement for the missing trimesh.transformations.look_at
     """
-    if not os.path.exists(BLENDER_EXECUTABLE_PATH):
-        _install_blender()
+    eye = np.asarray(eye, dtype=np.float32)
+    target = np.asarray(target, dtype=np.float32)
+    up = np.asarray(up, dtype=np.float32)
 
-    # Create a directory that will persist after this function returns.
+    # 1. Z-axis: The direction of the camera's gaze (from target to eye), normalized.
+    # In a right-handed system, the camera looks along its -Z axis.
+    z_axis = eye - target
+    z_axis /= np.linalg.norm(z_axis)
+
+    # 2. X-axis: The "right" vector, perpendicular to the up vector and z-axis.
+    x_axis = np.cross(up, z_axis)
+    x_axis /= np.linalg.norm(x_axis)
+
+    # 3. Y-axis: The "up" vector for the camera, perpendicular to z-axis and x-axis.
+    y_axis = np.cross(z_axis, x_axis)
+
+    # 4. Create the 4x4 pose matrix
+    pose = np.eye(4)
+    pose[:3, 0] = x_axis
+    pose[:3, 1] = y_axis
+    pose[:3, 2] = z_axis
+    pose[:3, 3] = eye
+
+    return pose
+
+
+# --- UPDATED RENDERER FUNCTION ---
+def render_views_to_tempdir(object_path, views, resolution=512, **kwargs):
+    """
+    Renders views of a 3D object using pyrender and saves them to a temporary directory.
+    This function mimics the lighting and material setup from the provided three.js template.
+    """
     output_dir = tempfile.mkdtemp()
     
-    views_json = json.dumps(views)
-    blender_script_path = os.path.join(os.path.dirname(__file__), 'render_blender.py')
+    try:
+        mesh = trimesh.load(object_path, force='mesh', process=False)
+    except Exception as e:
+        print(f"❌ Failed to load mesh {object_path}: {e}")
+        shutil.rmtree(output_dir)
+        return None
+
+    # --- Normalize the mesh ---
+    center = mesh.bounds.mean(axis=0)
+    mesh.apply_translation(-center)
+    max_dim = np.max(mesh.extents)
+    if max_dim > 0:
+        scale_factor = 1.5 / max_dim
+        mesh.apply_scale(scale_factor)
+
+    # --- Create the pyrender scene ---
+    material = pyrender.MetallicRoughnessMaterial(
+        baseColorFactor=[0xAA/255, 0xAA/255, 0xAA/255, 1.0],
+        metallicFactor=0.1,
+        roughnessFactor=0.7,
+        doubleSided=True
+    )
+    pyrender_mesh = pyrender.Mesh.from_trimesh(mesh, material=material)
+    scene = pyrender.Scene(
+        bg_color=[0xf4/255, 0xf4/255, 0xf4/255],
+        ambient_light=[0.7, 0.7, 0.7]
+    )
+    scene.add(pyrender_mesh)
+
+    light1 = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=0.6 * np.pi * 2)
+    light2 = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=0.4 * np.pi * 2)
+
+    # --- FIXED: Use our new 'create_look_at_pose' function ---
+    light_pose1 = create_look_at_pose(eye=[5, 10, 7.5], target=[0, 0, 0], up=[0, 1, 0])
+    light_pose2 = create_look_at_pose(eye=[-5, -5, -7.5], target=[0, 0, 0], up=[0, 1, 0])
+    scene.add(light1, pose=light_pose1)
+    scene.add(light2, pose=light_pose2)
+
+    renderer = pyrender.OffscreenRenderer(resolution, resolution)
     
-    command = [
-        'xvfb-run', '-a',
-        BLENDER_EXECUTABLE_PATH, '--background', '--python', blender_script_path,
-        '--', '--object', object_path, '--output_folder', output_dir,
-        '--views', views_json, '--resolution', str(resolution), '--quality', quality
-    ]
-    
-    print(f"--- Calling Blender for {os.path.basename(object_path)} (Output: {output_dir}) ---")
-    result = subprocess.run(command, capture_output=True, text=True)
-    
-    if result.returncode != 0:
-        print(f"❌ BLENDER FAILED for {os.path.basename(object_path)}.")
-        print("--- Blender's Full Output ---\n", result.stdout, result.stderr, "\n--- End of Blender Output ---")
-        shutil.rmtree(output_dir) # Clean up on failure
-        raise subprocess.CalledProcessError(result.returncode, command, output=result.stdout, stderr=result.stderr)
-    
+    for i, view in enumerate(tqdm(views, desc=f"Pyrendering {os.path.basename(object_path)}", leave=False)):
+        radius = view['radius']
+        x = radius * math.cos(view['pitch']) * math.sin(view['yaw'])
+        y = radius * math.sin(view['pitch'])
+        z = radius * math.cos(view['pitch']) * math.cos(view['yaw'])
+        
+        # --- FIXED: Use our new 'create_look_at_pose' function ---
+        camera_pose = create_look_at_pose(eye=[x, y, z], target=[0, 0, 0], up=[0, 1, 0])
+        
+        camera = pyrender.PerspectiveCamera(yfov=view['fov'], aspectRatio=1.0)
+        camera_node = scene.add(camera, pose=camera_pose)
+        
+        color, _ = renderer.render(scene)
+        
+        img = Image.fromarray(color)
+        img.save(os.path.join(output_dir, f'view_{i:04d}.png'))
+        
+        scene.remove_node(camera_node)
+
+    renderer.delete()
     return output_dir
+
 
 def create_descriptor_from_images(image_dir, model_type, model_assets):
     """

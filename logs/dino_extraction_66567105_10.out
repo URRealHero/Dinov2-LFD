@@ -1,0 +1,45 @@
+--- Starting SLURM Job ---
+Job ID: 66571181 | Array Task ID: 10 / 100
+Running on host: della-i14g19
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 10/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 10/100: Found 235767 total models in source.
+TASK 10/100: This task is responsible for 2358 models.
+TASK 10/100: Skipping 0 completed models.
+TASK 10/100: ➡️ Found 2358 new models to process.
+
+--- 🧠 TASK 10: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 10: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 10: Processing Batch 1 / 3
+--- 🚀 TASK 10: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 10: Rendering for batch complete in 301.20s. ---
+--- ⚙️ TASK 10: Encoding rendered images for the batch... ---
+--- ✅ TASK 10: Batch 1 complete. Processed 1000 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 10: Processing Batch 2 / 3
+--- 🚀 TASK 10: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/45be0e6f8fbc3f6b2bb413e96fcf70d866da64553860719e376a0161ded98e9c/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 10: Rendering for batch complete in 309.66s. ---
+--- ⚙️ TASK 10: Encoding rendered images for the batch... ---
+--- ✅ TASK 10: Batch 2 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 10: Processing Batch 3 / 3
+--- 🚀 TASK 10: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 10: Rendering for batch complete in 114.04s. ---
+--- ⚙️ TASK 10: Encoding rendered images for the batch... ---
+--- ✅ TASK 10: Batch 3 complete. Processed 358 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 10: All Batches Complete! ✨
+Successfully processed 2357 models in this task.
+Total time elapsed for this task: 6555.15 seconds.
+--- Task 10 Finished ---

@@ -1,0 +1,49 @@
+--- Starting SLURM Job ---
+Job ID: 66577644 | Array Task ID: 70 / 100
+Running on host: della-i14g9
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 70/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 70/100: Found 235767 total models in source.
+TASK 70/100: This task is responsible for 2357 models.
+TASK 70/100: Skipping 0 completed models.
+TASK 70/100: ➡️ Found 2357 new models to process.
+
+--- 🧠 TASK 70: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 70: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 70: Processing Batch 1 / 3
+--- 🚀 TASK 70: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/7d2cac5dc27f11cea4cf655e14c764a12af91dd0ac7187e89df432ebedef1ff5/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/89022fe602574b2686134ae9d177b096122ed380a790771f9d4ba2c3642deb17/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/b83c88d747f291f0095d5f0d675479b6def871fee3da42f7af52cbcc03af3f4e/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 70: Rendering for batch complete in 302.69s. ---
+--- ⚙️ TASK 70: Encoding rendered images for the batch... ---
+--- ✅ TASK 70: Batch 1 complete. Processed 997 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 70: Processing Batch 2 / 3
+--- 🚀 TASK 70: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/aad205b58ce4ed0210bc2535fac303b81a95be3e1f00a6d93864a49ea6ddcaf2/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/775262bb105d291e7e580ed3627f83237ad3cb1fb2ca4f024e36523e766b7c38/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 70: Rendering for batch complete in 302.82s. ---
+--- ⚙️ TASK 70: Encoding rendered images for the batch... ---
+--- ✅ TASK 70: Batch 2 complete. Processed 998 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 70: Processing Batch 3 / 3
+--- 🚀 TASK 70: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 70: Rendering for batch complete in 109.63s. ---
+--- ⚙️ TASK 70: Encoding rendered images for the batch... ---
+--- ✅ TASK 70: Batch 3 complete. Processed 357 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 70: All Batches Complete! ✨
+Successfully processed 2352 models in this task.
+Total time elapsed for this task: 6593.03 seconds.
+--- Task 70 Finished ---

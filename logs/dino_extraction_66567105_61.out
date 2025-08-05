@@ -1,0 +1,46 @@
+--- Starting SLURM Job ---
+Job ID: 66576878 | Array Task ID: 61 / 100
+Running on host: della-i14g12
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 61/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 61/100: Found 235767 total models in source.
+TASK 61/100: This task is responsible for 2358 models.
+TASK 61/100: Skipping 0 completed models.
+TASK 61/100: ➡️ Found 2358 new models to process.
+
+--- 🧠 TASK 61: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 61: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 61: Processing Batch 1 / 3
+--- 🚀 TASK 61: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/aa0583425b1c680f28370fdd2e94e487febb1b3b8509e8929573366f31d7c5c2/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 61: Rendering for batch complete in 308.87s. ---
+--- ⚙️ TASK 61: Encoding rendered images for the batch... ---
+--- ✅ TASK 61: Batch 1 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 61: Processing Batch 2 / 3
+--- 🚀 TASK 61: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/ae6ae0070500b25bbe6ae4c52807ed3da9400750d868b11da7395b0fdf0a4a85/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 61: Rendering for batch complete in 312.38s. ---
+--- ⚙️ TASK 61: Encoding rendered images for the batch... ---
+--- ✅ TASK 61: Batch 2 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 61: Processing Batch 3 / 3
+--- 🚀 TASK 61: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 61: Rendering for batch complete in 112.75s. ---
+--- ⚙️ TASK 61: Encoding rendered images for the batch... ---
+--- ✅ TASK 61: Batch 3 complete. Processed 358 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 61: All Batches Complete! ✨
+Successfully processed 2356 models in this task.
+Total time elapsed for this task: 6558.91 seconds.
+--- Task 61 Finished ---

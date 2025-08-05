@@ -1,0 +1,48 @@
+--- Starting SLURM Job ---
+Job ID: 66574863 | Array Task ID: 39 / 100
+Running on host: della-i14g14
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 39/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 39/100: Found 235767 total models in source.
+TASK 39/100: This task is responsible for 2358 models.
+TASK 39/100: Skipping 0 completed models.
+TASK 39/100: ➡️ Found 2358 new models to process.
+
+--- 🧠 TASK 39: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 39: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 39: Processing Batch 1 / 3
+--- 🚀 TASK 39: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/f1f24323d18120cf651dbd38be34dc03293d1b82d7bf849dd6f3681d66f73ab5/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/c954eafbb671da05142f13356e45eb15178a5663c3c25196c6b586a9f78a8c45/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/56aa12d2e3c8d4e30ccf47e59e66bbf792c34b3df1aea91ce6a568ce6772cb70/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 39: Rendering for batch complete in 304.91s. ---
+--- ⚙️ TASK 39: Encoding rendered images for the batch... ---
+--- ✅ TASK 39: Batch 1 complete. Processed 997 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 39: Processing Batch 2 / 3
+--- 🚀 TASK 39: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/7d123b95bebe1113612673dcbe9e534531d5fb60e4d90b7c2dd719b454886258/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 39: Rendering for batch complete in 304.08s. ---
+--- ⚙️ TASK 39: Encoding rendered images for the batch... ---
+--- ✅ TASK 39: Batch 2 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 39: Processing Batch 3 / 3
+--- 🚀 TASK 39: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 39: Rendering for batch complete in 107.74s. ---
+--- ⚙️ TASK 39: Encoding rendered images for the batch... ---
+--- ✅ TASK 39: Batch 3 complete. Processed 358 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 39: All Batches Complete! ✨
+Successfully processed 2354 models in this task.
+Total time elapsed for this task: 6582.38 seconds.
+--- Task 39 Finished ---

@@ -1,0 +1,44 @@
+--- Starting SLURM Job ---
+Job ID: 66578966 | Array Task ID: 81 / 100
+Running on host: della-l01g12
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 81/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 81/100: Found 235767 total models in source.
+TASK 81/100: This task is responsible for 2357 models.
+TASK 81/100: Skipping 0 completed models.
+TASK 81/100: ➡️ Found 2357 new models to process.
+
+--- 🧠 TASK 81: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 81: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 81: Processing Batch 1 / 3
+--- 🚀 TASK 81: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 81: Rendering for batch complete in 991.20s. ---
+--- ⚙️ TASK 81: Encoding rendered images for the batch... ---
+--- ✅ TASK 81: Batch 1 complete. Processed 1000 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 81: Processing Batch 2 / 3
+--- 🚀 TASK 81: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 81: Rendering for batch complete in 946.03s. ---
+--- ⚙️ TASK 81: Encoding rendered images for the batch... ---
+--- ✅ TASK 81: Batch 2 complete. Processed 1000 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 81: Processing Batch 3 / 3
+--- 🚀 TASK 81: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 81: Rendering for batch complete in 373.91s. ---
+--- ⚙️ TASK 81: Encoding rendered images for the batch... ---
+--- ✅ TASK 81: Batch 3 complete. Processed 357 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 81: All Batches Complete! ✨
+Successfully processed 2357 models in this task.
+Total time elapsed for this task: 13960.92 seconds.
+--- Task 81 Finished ---

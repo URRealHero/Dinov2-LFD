@@ -1,0 +1,46 @@
+--- Starting SLURM Job ---
+Job ID: 66572545 | Array Task ID: 19 / 100
+Running on host: della-i14g2
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 19/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 19/100: Found 235767 total models in source.
+TASK 19/100: This task is responsible for 2358 models.
+TASK 19/100: Skipping 0 completed models.
+TASK 19/100: ➡️ Found 2358 new models to process.
+
+--- 🧠 TASK 19: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 19: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 19: Processing Batch 1 / 3
+--- 🚀 TASK 19: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/40c29e8ed7243ba06c69c86f4cda5df12ed9d5fe2fdbd71fe79c3bb8656bb0ab/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 19: Rendering for batch complete in 300.48s. ---
+--- ⚙️ TASK 19: Encoding rendered images for the batch... ---
+--- ✅ TASK 19: Batch 1 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 19: Processing Batch 2 / 3
+--- 🚀 TASK 19: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/6b010aff326b949f8fa08242e88c63da21f5fd2fb6d2153dbfa77a59c7828324/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 19: Rendering for batch complete in 300.06s. ---
+--- ⚙️ TASK 19: Encoding rendered images for the batch... ---
+--- ✅ TASK 19: Batch 2 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 19: Processing Batch 3 / 3
+--- 🚀 TASK 19: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 19: Rendering for batch complete in 109.83s. ---
+--- ⚙️ TASK 19: Encoding rendered images for the batch... ---
+--- ✅ TASK 19: Batch 3 complete. Processed 358 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 19: All Batches Complete! ✨
+Successfully processed 2356 models in this task.
+Total time elapsed for this task: 6540.24 seconds.
+--- Task 19 Finished ---

@@ -1,0 +1,45 @@
+--- Starting SLURM Job ---
+Job ID: 66580549 | Array Task ID: 96 / 100
+Running on host: della-i14g7
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 96/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 96/100: Found 235767 total models in source.
+TASK 96/100: This task is responsible for 2357 models.
+TASK 96/100: Skipping 0 completed models.
+TASK 96/100: ➡️ Found 2357 new models to process.
+
+--- 🧠 TASK 96: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 96: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 96: Processing Batch 1 / 3
+--- 🚀 TASK 96: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 96: Rendering for batch complete in 300.07s. ---
+--- ⚙️ TASK 96: Encoding rendered images for the batch... ---
+--- ✅ TASK 96: Batch 1 complete. Processed 1000 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 96: Processing Batch 2 / 3
+--- 🚀 TASK 96: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/686d310c7666534691cb46a213839c7186ccf77f3ae17cbbd441927f14768593/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 96: Rendering for batch complete in 304.19s. ---
+--- ⚙️ TASK 96: Encoding rendered images for the batch... ---
+--- ✅ TASK 96: Batch 2 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 96: Processing Batch 3 / 3
+--- 🚀 TASK 96: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 96: Rendering for batch complete in 113.45s. ---
+--- ⚙️ TASK 96: Encoding rendered images for the batch... ---
+--- ✅ TASK 96: Batch 3 complete. Processed 357 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 96: All Batches Complete! ✨
+Successfully processed 2356 models in this task.
+Total time elapsed for this task: 6536.12 seconds.
+--- Task 96 Finished ---

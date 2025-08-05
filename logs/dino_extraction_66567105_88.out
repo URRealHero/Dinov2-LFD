@@ -1,0 +1,44 @@
+--- Starting SLURM Job ---
+Job ID: 66580106 | Array Task ID: 88 / 100
+Running on host: della-i14g8
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 88/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 88/100: Found 235767 total models in source.
+TASK 88/100: This task is responsible for 2357 models.
+TASK 88/100: Skipping 0 completed models.
+TASK 88/100: ➡️ Found 2357 new models to process.
+
+--- 🧠 TASK 88: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 88: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 88: Processing Batch 1 / 3
+--- 🚀 TASK 88: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 88: Rendering for batch complete in 305.49s. ---
+--- ⚙️ TASK 88: Encoding rendered images for the batch... ---
+--- ✅ TASK 88: Batch 1 complete. Processed 1000 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 88: Processing Batch 2 / 3
+--- 🚀 TASK 88: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 88: Rendering for batch complete in 305.82s. ---
+--- ⚙️ TASK 88: Encoding rendered images for the batch... ---
+--- ✅ TASK 88: Batch 2 complete. Processed 1000 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 88: Processing Batch 3 / 3
+--- 🚀 TASK 88: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 88: Rendering for batch complete in 110.20s. ---
+--- ⚙️ TASK 88: Encoding rendered images for the batch... ---
+--- ✅ TASK 88: Batch 3 complete. Processed 357 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 88: All Batches Complete! ✨
+Successfully processed 2357 models in this task.
+Total time elapsed for this task: 6489.67 seconds.
+--- Task 88 Finished ---

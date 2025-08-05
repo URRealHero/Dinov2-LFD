@@ -14,19 +14,31 @@ import cal_dist
 
 
 # --- Phase 1 Worker: Renders images and returns their directory ---
-def render_worker(object_path, camera_views, quality):
+def render_worker(object_path, camera_views): # <-- Removed 'quality' argument
     """
     A helper function that runs in a separate process to RENDER an object's views.
-    It does NOT load the feature extractor model, keeping its memory footprint low.
+    It now uses pyrender, which is more efficient.
     """
     try:
-        print(f"RENDER WORKER (PID: {os.getpid()}) started for: {os.path.basename(object_path)}")
+        # Wrap the rendering call in xvfb-run for headless environments
+        pid = os.getpid()
+        print(f"RENDER WORKER (PID: {pid}) started for: {os.path.basename(object_path)}")
         
-        # This function should exist in your 'encode.py' module.
-        # It handles running Blender for one object and saving the images to a new temp directory.
-        image_dir = encode.render_views_to_tempdir(object_path, camera_views, quality)
+        # The function in 'encode.py' now uses pyrender
+        # No need to run it in a subprocess, but xvfb is needed for headless.
+        # We can run the function directly. The ProcessPoolExecutor already isolates it.
+        # However, pyrender needs an OpenGL context. It's safer to use xvfb
+        # for each worker if running on a server without a physical display.
         
-        print(f"✅ RENDER WORKER (PID: {os.getpid()}) finished: {os.path.basename(object_path)}")
+        # For simplicity and robustness on headless systems, we'll keep the xvfb-run call
+        # but have it execute a small wrapper script or a python command.
+        # A simpler approach that often works is setting the display variable.
+        # Let's try the direct call first as it's cleaner. If it fails on a server,
+        # one would add `os.environ['PYOPENGL_PLATFORM'] = 'egl'` or wrap in `xvfb-run`
+        
+        image_dir = encode.render_views_to_tempdir(object_path, camera_views)
+        
+        print(f"✅ RENDER WORKER (PID: {pid}) finished: {os.path.basename(object_path)}")
         return object_path, image_dir
         
     except Exception as e:
@@ -34,8 +46,8 @@ def render_worker(object_path, camera_views, quality):
         import traceback
         traceback.print_exc()
         return object_path, None
-
-
+    
+    
 if __name__ == '__main__':
     # --- 1. Main Configuration ---
     parser = argparse.ArgumentParser(description="Run 3D model similarity tests in parallel.")
@@ -44,8 +56,8 @@ if __name__ == '__main__':
     parser.add_argument('--model_type', type=str, default='dinov2',
                         choices=['dinov1', 'dinov2', 'clip', 'sscd', 'sam2'],
                         help="The feature extractor model to use.")
-    parser.add_argument('--quality', type=str, default='FAST', choices=['FAST', 'HIGH'],
-                        help="Rendering quality ('FAST' uses EEVEE, 'HIGH' uses CYCLES).")
+    # parser.add_argument('--quality', type=str, default='FAST', choices=['FAST', 'HIGH'],
+                        # help="Rendering quality ('FAST' uses EEVEE, 'HIGH' uses CYCLES).")
     parser.add_argument('--views', type=int, default=50, help="Number of views to render per object.")
     parser.add_argument('--workers', type=int, default=4, help="Number of parallel processes to run.")
     parser.add_argument('--output_dir', type=str, default='assets/results_features', help="Directory to save the final feature descriptors.")
@@ -58,9 +70,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # ---(Optional) Download Blender ---
-    if not os.path.exists(encode.BLENDER_EXECUTABLE_PATH):
-        print("Blender executable not found. Please ensure Blender is installed and set up correctly.")
-        encode._install_blender()
+    # if not os.path.exists(encode.BLENDER_EXECUTABLE_PATH):
+    #     print("Blender executable not found. Please ensure Blender is installed and set up correctly.")
+    #     encode._install_blender()
+    print("✅ Using pyrender for rendering. Ensure 'pyrender', 'trimesh', and 'pyglet' are installed.")
 
     # --- 2. Setup ---
     print("--- Initializing Test Environment ---")
@@ -113,7 +126,7 @@ if __name__ == '__main__':
         rendered_data = {} # Stores {model_path: image_directory}
         with ProcessPoolExecutor(max_workers=args.workers) as executor:
             future_to_path = {
-                executor.submit(render_worker, path, camera_views, args.quality): path
+                executor.submit(render_worker, path, camera_views): path
                 for path in models_to_process
             }
             

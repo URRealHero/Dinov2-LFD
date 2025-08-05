@@ -1,0 +1,47 @@
+--- Starting SLURM Job ---
+Job ID: 66578738 | Array Task ID: 78 / 100
+Running on host: della-i14g2
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 78/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 78/100: Found 235767 total models in source.
+TASK 78/100: This task is responsible for 2357 models.
+TASK 78/100: Skipping 0 completed models.
+TASK 78/100: ➡️ Found 2357 new models to process.
+
+--- 🧠 TASK 78: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 78: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 78: Processing Batch 1 / 3
+--- 🚀 TASK 78: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/dc90db16d1d642d695153d1ba280031a/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/8aa7b33f78e486477f0bde51d10b679217d44ee1619e38f365a5967bde37dbe8/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/f92d8d5a25588c21a8f1d482b4376691c9ed06e09fb2ec0b597db044fbd77eda/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 78: Rendering for batch complete in 300.99s. ---
+--- ⚙️ TASK 78: Encoding rendered images for the batch... ---
+--- ✅ TASK 78: Batch 1 complete. Processed 997 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 78: Processing Batch 2 / 3
+--- 🚀 TASK 78: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 78: Rendering for batch complete in 306.76s. ---
+--- ⚙️ TASK 78: Encoding rendered images for the batch... ---
+--- ✅ TASK 78: Batch 2 complete. Processed 1000 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 78: Processing Batch 3 / 3
+--- 🚀 TASK 78: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 78: Rendering for batch complete in 112.09s. ---
+--- ⚙️ TASK 78: Encoding rendered images for the batch... ---
+--- ✅ TASK 78: Batch 3 complete. Processed 357 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 78: All Batches Complete! ✨
+Successfully processed 2354 models in this task.
+Total time elapsed for this task: 6591.35 seconds.
+--- Task 78 Finished ---

@@ -1,0 +1,47 @@
+--- Starting SLURM Job ---
+Job ID: 66580107 | Array Task ID: 89 / 100
+Running on host: della-i14g14
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 89/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 89/100: Found 235767 total models in source.
+TASK 89/100: This task is responsible for 2357 models.
+TASK 89/100: Skipping 0 completed models.
+TASK 89/100: ➡️ Found 2357 new models to process.
+
+--- 🧠 TASK 89: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 89: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 89: Processing Batch 1 / 3
+--- 🚀 TASK 89: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/02ad1ecd3c32704b30544184b8e1a8054e2b70d2660a364fbd34b82d44629d92/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 89: Rendering for batch complete in 296.06s. ---
+--- ⚙️ TASK 89: Encoding rendered images for the batch... ---
+--- ✅ TASK 89: Batch 1 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 89: Processing Batch 2 / 3
+--- 🚀 TASK 89: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/d4cbc12868b42eade50d56ef0da304a0f715cd26f2570f7a63932282e4144960/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/53712962a356e827f2fe7b03203d1e02793c61d0dfde957a31215536b7921de0/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 89: Rendering for batch complete in 308.16s. ---
+--- ⚙️ TASK 89: Encoding rendered images for the batch... ---
+--- ✅ TASK 89: Batch 2 complete. Processed 998 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 89: Processing Batch 3 / 3
+--- 🚀 TASK 89: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 89: Rendering for batch complete in 108.14s. ---
+--- ⚙️ TASK 89: Encoding rendered images for the batch... ---
+--- ✅ TASK 89: Batch 3 complete. Processed 357 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 89: All Batches Complete! ✨
+Successfully processed 2354 models in this task.
+Total time elapsed for this task: 6582.98 seconds.
+--- Task 89 Finished ---

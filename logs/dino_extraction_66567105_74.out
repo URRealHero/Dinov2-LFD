@@ -1,0 +1,46 @@
+--- Starting SLURM Job ---
+Job ID: 66578005 | Array Task ID: 74 / 100
+Running on host: della-i14g7
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 74/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 74/100: Found 235767 total models in source.
+TASK 74/100: This task is responsible for 2357 models.
+TASK 74/100: Skipping 0 completed models.
+TASK 74/100: ➡️ Found 2357 new models to process.
+
+--- 🧠 TASK 74: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 74: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 74: Processing Batch 1 / 3
+--- 🚀 TASK 74: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/4a3c5609194fc6d887289a26e8f3a80efa9cfe6f63c66f330e0495721c4606dc/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/b14860d2bcc0b04d5b0ae73c4e219e1c1aa9ef7344b0b0c0922ad02cd97cd4b6/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 74: Rendering for batch complete in 305.61s. ---
+--- ⚙️ TASK 74: Encoding rendered images for the batch... ---
+--- ✅ TASK 74: Batch 1 complete. Processed 998 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 74: Processing Batch 2 / 3
+--- 🚀 TASK 74: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 74: Rendering for batch complete in 306.09s. ---
+--- ⚙️ TASK 74: Encoding rendered images for the batch... ---
+--- ✅ TASK 74: Batch 2 complete. Processed 1000 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 74: Processing Batch 3 / 3
+--- 🚀 TASK 74: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 74: Rendering for batch complete in 110.57s. ---
+--- ⚙️ TASK 74: Encoding rendered images for the batch... ---
+--- ✅ TASK 74: Batch 3 complete. Processed 357 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 74: All Batches Complete! ✨
+Successfully processed 2355 models in this task.
+Total time elapsed for this task: 6538.79 seconds.
+--- Task 74 Finished ---

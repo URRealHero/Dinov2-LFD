@@ -1,0 +1,45 @@
+--- Starting SLURM Job ---
+Job ID: 66577753 | Array Task ID: 72 / 100
+Running on host: della-i14g4
+Allocated CPUs: 16
+-----------------------------------------------------
+⚠️ Warning: SAM2 library not found. The 'sam2' model type will not be available.
+TASK 72/100: 🔍 Scanning for all models in '/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K'...
+TASK 72/100: Found 235767 total models in source.
+TASK 72/100: This task is responsible for 2357 models.
+TASK 72/100: Skipping 0 completed models.
+TASK 72/100: ➡️ Found 2357 new models to process.
+
+--- 🧠 TASK 72: Loading DINOv2 model into VRAM... ---
+Loading DinoV2 model...
+✅ DinoV2 model loaded on cuda.
+--- ✅ TASK 72: DINOv2 model loaded. ---
+
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 72: Processing Batch 1 / 3
+--- 🚀 TASK 72: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 72: Rendering for batch complete in 309.94s. ---
+--- ⚙️ TASK 72: Encoding rendered images for the batch... ---
+--- ✅ TASK 72: Batch 1 complete. Processed 1000 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 72: Processing Batch 2 / 3
+--- 🚀 TASK 72: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+❌ Failed to load mesh /scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K/bd5c7d94bd62f4ad0498c89d88c300949053df271ad9adaf111996cac0935726/model_normalized.glb: index 0 is out of bounds for axis 0 with size 0
+--- ✅ TASK 72: Rendering for batch complete in 301.75s. ---
+--- ⚙️ TASK 72: Encoding rendered images for the batch... ---
+--- ✅ TASK 72: Batch 2 complete. Processed 999 models. ---
+────────────────────────────────────────────────────────────────────────────────
+📦 TASK 72: Processing Batch 3 / 3
+--- 🚀 TASK 72: Starting Rendering with 8 workers... ---
+✅ Generated 50 camera views for Blender.
+--- ✅ TASK 72: Rendering for batch complete in 111.10s. ---
+--- ⚙️ TASK 72: Encoding rendered images for the batch... ---
+--- ✅ TASK 72: Batch 3 complete. Processed 357 models. ---
+
+✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
+✨ TASK 72: All Batches Complete! ✨
+Successfully processed 2356 models in this task.
+Total time elapsed for this task: 6584.81 seconds.
+--- Task 72 Finished ---
