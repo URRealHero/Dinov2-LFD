@@ -1,3 +1,4 @@
+logs/
 checkpoints/
 __pycache__/
 features/
