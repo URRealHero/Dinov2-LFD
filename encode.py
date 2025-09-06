@@ -1,6 +1,6 @@
 import os
-os.environ['HF_HOME'] = '/scratch/gpfs/bz1474/sp2526/huggingface_cache'  # Set Hugging Face cache directory
-os.environ['PYOPENGL_PLATFORM'] = 'egl'  # Use EGL for OpenGL context
+os.environ['HF_HOME'] = '/scratch/gpfs/sp2526/huggingface_cache'  # Set Hugging Face cache directory
+os.environ.setdefault('PYOPENGL_PLATFORM', 'egl')
 import numpy as np
 from PIL import Image
 import torch
@@ -11,7 +11,7 @@ import json
 import tempfile
 import shutil
 import torch.nn as nn
-from torchvision import transforms as pth_transforms
+from torchvision import models, transforms as pth_transforms
 import yaml
 import hydra
 from hydra.core.global_hydra import GlobalHydra
@@ -88,6 +88,39 @@ def load_sam2_model(config_path, checkpoint_path):
     predictor = SAM2ImagePredictor(sam2_model)
     print(f"✅ SAM2 model loaded on {device}.")
     return predictor, device
+
+def load_inceptionv3_model():
+    """
+    Loads the InceptionV3 model and sets up a hook to extract features
+    from the final average pooling layer.
+    """
+    print("Loading InceptionV3 model...")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # Load pretrained InceptionV3 model
+    model = models.inception_v3(weights=models.Inception_V3_Weights.IMAGENET1K_V1, transform_input=False).to(device)
+    model.eval()
+
+    # Define the hook to capture the output of the 'avgpool' layer
+    feature_output = []
+    def hook(module, input, output):
+        feature_output.clear() # Clear previous batch's features
+        feature_output.append(output)
+
+    # Register the hook on the final average pooling layer
+    model.avgpool.register_forward_hook(hook)
+
+    # Define the specific transforms for InceptionV3
+    preprocess = pth_transforms.Compose([
+        pth_transforms.Resize(299),
+        pth_transforms.CenterCrop(299),
+        pth_transforms.ToTensor(),
+        pth_transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    
+    print(f"✅ InceptionV3 model loaded on {device}. Hooked into avgpool layer.")
+    # Return model, the list that the hook populates, the transformations, and device
+    return model, feature_output, preprocess, device
 
 # --- Helper Functions (Unchanged) ---
 def generate_spherical_views(num_views=150, radius=2.5, fov_deg=50):
@@ -175,6 +208,29 @@ def extract_sam2_features(images, predictor, device):
             feature_list.append(feature_vector.cpu().numpy())
     return np.vstack(feature_list)
 
+def extract_inceptionv3_features(images, model, feature_output, preprocess, device):
+    """
+    Extracts features using the hooked InceptionV3 model.
+    """
+    feature_list = []
+    batch_size = 16  # Adjust batch size based on VRAM
+    with torch.no_grad():
+        for i in tqdm(range(0, len(images), batch_size), desc="Extracting InceptionV3 Features", leave=False):
+            img_batch_pil = images[i : i + batch_size]
+            if not img_batch_pil: continue
+
+            # Preprocess the batch of images
+            img_batch_tensor = torch.stack([preprocess(img.convert("RGB")) for img in img_batch_pil]).to(device)
+            
+            # Run the model. The hook will automatically capture the features.
+            model(img_batch_tensor)
+
+            # The hook populates 'feature_output' with a list containing one tensor.
+            # Shape is (batch_size, 2048, 1, 1). We squeeze it and move to CPU.
+            batch_features = feature_output[0].squeeze(-1).squeeze(-1).cpu().numpy()
+            feature_list.append(batch_features)
+            
+    return np.vstack(feature_list)
 
 # ------------------------------------------------------------------
 # --- REFACTORED LOGIC: The two new functions for the split logic ---
@@ -210,6 +266,15 @@ def create_look_at_pose(eye, target, up):
 
     return pose
 
+def _srgb8_to_linear(v8):
+    v = v8 / 255.0
+    if v <= 0.04045:
+        return v / 12.92
+    return ((v + 0.055) / 1.055) ** 2.4
+
+def srgb8_rgba_to_linear_rgba(rgba_255):
+    r, g, b, a = rgba_255
+    return [_srgb8_to_linear(r), _srgb8_to_linear(g), _srgb8_to_linear(b), a / 255.0]
 
 # --- UPDATED RENDERER FUNCTION ---
 def render_views_to_tempdir(object_path, views, resolution=512, **kwargs):
@@ -218,7 +283,8 @@ def render_views_to_tempdir(object_path, views, resolution=512, **kwargs):
     This function mimics the lighting and material setup from the provided three.js template.
     """
     output_dir = tempfile.mkdtemp()
-    
+    BG_RGBA_255  = (250, 248, 236, 255)
+    OBJ_RGBA_255 = (110, 160, 220, 255)
     try:
         mesh = trimesh.load(object_path, force='mesh', process=False)
     except Exception as e:
@@ -234,17 +300,20 @@ def render_views_to_tempdir(object_path, views, resolution=512, **kwargs):
         scale_factor = 1.5 / max_dim
         mesh.apply_scale(scale_factor)
 
+    obj_rgba_linear = srgb8_rgba_to_linear_rgba(OBJ_RGBA_255)
+    bg_rgba_linear  = srgb8_rgba_to_linear_rgba(BG_RGBA_255)
+
     # --- Create the pyrender scene ---
     material = pyrender.MetallicRoughnessMaterial(
-        baseColorFactor=[0xAA/255, 0xAA/255, 0xAA/255, 1.0],
-        metallicFactor=0.1,
-        roughnessFactor=0.7,
+        baseColorFactor=obj_rgba_linear,
+        metallicFactor=0.0,
+        roughnessFactor=0.85,
         doubleSided=True
     )
     pyrender_mesh = pyrender.Mesh.from_trimesh(mesh, material=material)
     scene = pyrender.Scene(
-        bg_color=[0xf4/255, 0xf4/255, 0xf4/255],
-        ambient_light=[0.7, 0.7, 0.7]
+        bg_color=bg_rgba_linear,
+        ambient_light=[0.3, 0.3, 0.3]
     )
     scene.add(pyrender_mesh)
 
@@ -284,12 +353,12 @@ def render_views_to_tempdir(object_path, views, resolution=512, **kwargs):
 
 def create_descriptor_from_images(image_dir, model_type, model_assets):
     """
-    NEW FUNCTION 2: Loads rendered images from a directory and extracts features.
+    --- MODIFIED ---: Updated to handle 'inceptionv3'
+    Loads rendered images from a directory and extracts features.
     """
     if model_assets is None:
         raise ValueError("model_assets must be provided")
 
-    # Load images from the directory
     try:
         image_files = sorted([f for f in os.listdir(image_dir) if f.endswith('.png')])
         images = [Image.open(os.path.join(image_dir, f)) for f in image_files]
@@ -307,6 +376,8 @@ def create_descriptor_from_images(image_dir, model_type, model_assets):
         descriptor = extract_dinov1_features(images, *model_assets)
     elif model_type == 'dinov2':
         descriptor = extract_dinov2_features(images, *model_assets)
+    elif model_type == 'inceptionv3':
+        descriptor = extract_inceptionv3_features(images, *model_assets)
     elif model_type == 'sam2':
         descriptor = extract_sam2_features(images, *model_assets)
     elif model_type == 'clip':

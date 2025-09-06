@@ -1,0 +1,67 @@
+{
+  "model_path": "/home/sp2526/3DMemory/Genset_Res/Ref/nfd_results/nfd_genset/cars_samples/0/LFD.obj",
+  "output_dir": "render_test_OUT/LFD_20250906-052758",
+  "requested_views": 10,
+  "rendered_images": 10,
+  "blank_like_images": 0,
+  "mean_std": 33.7347,
+  "mean_non_bg_ratio": 1.0,
+  "pyopengl_platform": "egl",
+  "passed": true,
+  "notes": [
+    "Heuristics: std<2 AND non_bg_ratio<0.01 \u21d2 likely blank/flat.",
+    "Background assumed \u2248 light gray; non-bg counts pixels < 250."
+  ],
+  "per_image": [
+    {
+      "file": "view_0000.png",
+      "std": 38.33259374067191,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0001.png",
+      "std": 38.99976437805957,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0002.png",
+      "std": 33.44794030091973,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0003.png",
+      "std": 32.53412239426747,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0004.png",
+      "std": 34.392531511238616,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0005.png",
+      "std": 33.808520427910594,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0006.png",
+      "std": 29.258146536904917,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0007.png",
+      "std": 30.06231868820354,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0008.png",
+      "std": 33.97517862738515,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0009.png",
+      "std": 32.53607656717762,
+      "non_bg_ratio": 1.0
+    }
+  ]
+}

@@ -1,10 +1,10 @@
-# run_feature_extraction.py
-
 import os
 import time
 import argparse
 import shutil
 import numpy as np
+import multiprocessing as mp
+mp.set_start_method("spawn", force=True)
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 # Import the refactored functions from your encode.py module
@@ -12,53 +12,62 @@ import encode
 
 def find_model_paths(input_dir, output_dir, output_filename, resume, task_id, num_tasks):
     """
-    Scans for all models and returns a unique chunk for the given task ID.
+    Scans for all ShapeNet models and returns a unique chunk for the given task ID.
+    This version is adapted for the ShapeNetCore structure: {input_dir}/{category_uid}/{model_uid}/...
     """
     print(f"TASK {task_id}/{num_tasks}: 🔍 Scanning for all models in '{input_dir}'...")
 
-    all_found_paths = []
+    # Stores tuples of (full_model_path, relative_path_for_output)
+    all_found_models = []
+    # --- MODIFIED ---: Search for '.obj' files and preserve the category/model structure.
+    search_file = "model_normalized.obj"
+    
     for root, dirs, files in os.walk(input_dir):
-        if "model_normalized.glb" in files:
-            all_found_paths.append(os.path.join(root, "model_normalized.glb"))
+        if search_file in files:
+            full_path = os.path.join(root, search_file)
+            # This captures the '{category_uid}/{model_uid}' part of the path
+            relative_path = os.path.relpath(root, input_dir)
+            all_found_models.append((full_path, relative_path))
 
-    print(f"TASK {task_id}/{num_tasks}: Found {len(all_found_paths)} total models in source.")
+    print(f"TASK {task_id}/{num_tasks}: Found {len(all_found_models)} total models in source.")
 
-    chunk_paths = []
-    for i, model_path in enumerate(all_found_paths):
+    # Distribute the models among the tasks
+    chunk_models = []
+    for i, model_info in enumerate(all_found_models):
         if i % num_tasks == (task_id - 1):
-            chunk_paths.append(model_path)
+            chunk_models.append(model_info)
 
-    print(f"TASK {task_id}/{num_tasks}: This task is responsible for {len(chunk_paths)} models.")
+    print(f"TASK {task_id}/{num_tasks}: This task is responsible for {len(chunk_models)} models.")
 
     if not resume:
-        print(f"TASK {task_id}/{num_tasks}: Resume is disabled, processing all {len(chunk_paths)} models in its chunk.")
-        return chunk_paths
+        print(f"TASK {task_id}/{num_tasks}: Resume is disabled, processing all {len(chunk_models)} models in its chunk.")
+        return chunk_models
 
-    model_paths_to_process = []
+    # If resuming, filter out already processed models
+    models_to_process = []
     skipped_count = 0
-    for model_path in chunk_paths:
-        uid = os.path.basename(os.path.dirname(model_path))
-        # --- MODIFIED ---: Uses the dynamically generated output_filename
-        output_path = os.path.join(output_dir, uid, output_filename)
+    for full_path, relative_path in chunk_models:
+        # --- MODIFIED ---: Construct the output path using the relative path
+        output_path = os.path.join(output_dir, relative_path, output_filename)
         if os.path.exists(output_path):
             skipped_count += 1
             continue
-        model_paths_to_process.append(model_path)
+        models_to_process.append((full_path, relative_path))
 
     print(f"TASK {task_id}/{num_tasks}: Skipping {skipped_count} completed models.")
-    print(f"TASK {task_id}/{num_tasks}: ➡️ Found {len(model_paths_to_process)} new models to process.")
+    print(f"TASK {task_id}/{num_tasks}: ➡️ Found {len(models_to_process)} new models to process.")
 
-    return model_paths_to_process
+    return models_to_process
 
 if __name__ == '__main__':
     # --- 1. Configuration ---
     parser = argparse.ArgumentParser(
-        description="Process a chunk of a 3D model dataset to generate image-based features."
+        description="Process a chunk of a ShapeNet dataset to generate image-based features."
     )
-    parser.add_argument('--input_dir', type=str, required=True)
-    parser.add_argument('--output_dir', type=str, required=True)
+    # --- MODIFIED ---: Renamed for clarity, but function is the same.
+    parser.add_argument('--input_dir', type=str, required=True, help="Root directory of the ShapeNet dataset.")
+    parser.add_argument('--output_dir', type=str, required=True, help="Root directory to save feature files.")
     
-    # --- MODIFIED ---: Added model_name argument and made output_filename optional
     parser.add_argument(
         '--model_name', 
         type=str, 
@@ -80,26 +89,23 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
-    # --- MODIFIED ---: Dynamically create output filename if not provided
     if args.output_filename is None:
         output_filename = f"{args.model_name}_feature.npy"
     else:
         output_filename = args.output_filename
     print(f"Using model '{args.model_name}'. Output files will be named '{output_filename}'.")
 
-
     # --- 2. Discover This Task's Models ---
-    all_model_paths = find_model_paths(
+    models_to_process = find_model_paths(
         args.input_dir, args.output_dir, output_filename, args.resume,
         args.task_id, args.num_tasks
     )
 
-    if not all_model_paths:
+    if not models_to_process:
         print(f"✅ TASK {args.task_id}/{args.num_tasks}: No new models to process. Exiting.")
         exit(0)
 
     # --- 3. Load AI Model Once ---
-    # --- MODIFIED ---: Dispatcher to load the correct model
     print(f"\n--- 🧠 TASK {args.task_id}: Loading {args.model_name.upper()} model into VRAM... ---")
     
     if args.model_name == 'dinov2':
@@ -120,12 +126,12 @@ if __name__ == '__main__':
     # --- 4. Process All Models in Batches ---
     overall_start_time = time.time()
     total_processed_count = 0
-    num_batches = (len(all_model_paths) + args.batch_size - 1) // args.batch_size
+    num_batches = (len(models_to_process) + args.batch_size - 1) // args.batch_size
 
     for i in range(num_batches):
         batch_start_idx = i * args.batch_size
         batch_end_idx = batch_start_idx + args.batch_size
-        batch_paths = all_model_paths[batch_start_idx:batch_end_idx]
+        batch_model_info = models_to_process[batch_start_idx:batch_end_idx]
 
         print("─" * 80)
         print(f"📦 TASK {args.task_id}: Processing Batch {i+1} / {num_batches}")
@@ -137,18 +143,19 @@ if __name__ == '__main__':
         rendered_data = {}
 
         with ProcessPoolExecutor(max_workers=args.workers) as executor:
-            future_to_path = {
-                executor.submit(encode.render_views_to_tempdir, path, camera_views): path
-                for path in batch_paths
+            # --- MODIFIED ---: Submit the full path for rendering, but keep track of the tuple.
+            future_to_model_info = {
+                executor.submit(encode.render_views_to_tempdir, full_path, camera_views): (full_path, rel_path)
+                for full_path, rel_path in batch_model_info
             }
-            for future in as_completed(future_to_path):
-                original_path = future_to_path[future]
+            for future in as_completed(future_to_model_info):
+                original_model_info = future_to_model_info[future]
                 try:
                     image_dir = future.result()
-                    if image_dir: rendered_data[original_path] = image_dir
+                    if image_dir: rendered_data[original_model_info] = image_dir
                 except Exception as exc:
-                    uid = os.path.basename(os.path.dirname(original_path))
-                    print(f"❌ Render error for {uid}: {exc}")
+                    # Log using the relative path for easy identification
+                    print(f"❌ Render error for {original_model_info[1]}: {exc}")
 
         print(f"--- ✅ TASK {args.task_id}: Rendering for batch complete in {time.time() - batch_render_start_time:.2f}s. ---")
 
@@ -159,24 +166,23 @@ if __name__ == '__main__':
 
         print(f"--- ⚙️ TASK {args.task_id}: Encoding rendered images for the batch with {args.model_name.upper()}... ---")
         batch_processed_count = 0
-        for model_path, image_dir in rendered_data.items():
-            uid = os.path.basename(os.path.dirname(model_path))
+        # --- MODIFIED ---: Unpack the tuple when iterating
+        for (model_path, relative_path), image_dir in rendered_data.items():
             try:
-                # --- MODIFIED ---: Pass model_name to the descriptor function
                 descriptor = encode.create_descriptor_from_images(
                     image_dir, args.model_name, model_assets
                 )
                 if descriptor is not None:
-                    output_folder = os.path.join(args.output_dir, uid)
+                    # --- MODIFIED ---: Create the full category/model output path
+                    output_folder = os.path.join(args.output_dir, relative_path)
                     os.makedirs(output_folder, exist_ok=True)
-                    # --- MODIFIED ---: Use the dynamic output filename
                     output_path = os.path.join(output_folder, output_filename)
                     np.save(output_path, descriptor)
                     batch_processed_count += 1
                 else:
-                    print(f"⚠️ Failed to generate descriptor for {uid}, skipping.")
+                    print(f"⚠️ Failed to generate descriptor for {relative_path}, skipping.")
             except Exception as e:
-                print(f"❌ Encoding error for {uid}: {e}")
+                print(f"❌ Encoding error for {relative_path}: {e}")
             finally:
                 if os.path.exists(image_dir):
                     shutil.rmtree(image_dir)

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=dino_array_extraction
+#SBATCH --job-name=feature_array_extraction
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16         # Requesting 16 CPUs for the workers
@@ -13,8 +13,8 @@
 
 # --- MODIFIED: Use array variables in log filenames to keep them separate ---
 # %A is the Job ID, %a is the Array Task ID
-#SBATCH --output=logs/dino_extraction_%A_%a.out
-#SBATCH --error=logs/dino_extraction_%A_%a.err
+#SBATCH --output=logs/feature_extraction_%A_%a.out
+#SBATCH --error=logs/feature_extraction_%A_%a.err
 
 # --- Environment Setup ---
 # Create the logs directory before submitting: mkdir -p logs
@@ -30,9 +30,10 @@ echo "Allocated CPUs: $SLURM_CPUS_PER_TASK"
 echo "-----------------------------------------------------"
 
 # --- Define Data and Script Paths ---
-INPUT_DIR="/scratch/gpfs/ZHUANGL/bz1474/Objaverse/dataset/Trellis500K"
-OUTPUT_DIR="/scratch/gpfs/bz1474/sp2526/Dinov2-LFD"
-SCRIPT_PATH="process_objaverse.py"
+INPUT_DIR="/scratch/gpfs/sp2526/ShapeNetCoreV1"
+OUTPUT_DIR="/scratch/gpfs/sp2526/DinoV2_ShapeNet"
+SCRIPT_PATH="process_shapenet.py"
+MODEL_NAME="dinov2"
 
 # --- Execute the Python Script ---
 # This passes the array task ID to the script so it knows which chunk of data to process.
@@ -40,6 +41,7 @@ SCRIPT_PATH="process_objaverse.py"
 python -u $SCRIPT_PATH \
     --input_dir $INPUT_DIR \
     --output_dir $OUTPUT_DIR \
+    --model_name $MODEL_NAME \
     --task_id $SLURM_ARRAY_TASK_ID \
     --num_tasks $SLURM_ARRAY_TASK_COUNT \
     --views 50 \

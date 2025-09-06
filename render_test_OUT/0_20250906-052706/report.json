@@ -1,0 +1,67 @@
+{
+  "model_path": "/home/sp2526/3DMemory/Genset_Res/Query/nfd_genset/planes_samples/0.obj",
+  "output_dir": "render_test_OUT/0_20250906-052706",
+  "requested_views": 10,
+  "rendered_images": 10,
+  "blank_like_images": 0,
+  "mean_std": 26.4073,
+  "mean_non_bg_ratio": 1.0,
+  "pyopengl_platform": "egl",
+  "passed": true,
+  "notes": [
+    "Heuristics: std<2 AND non_bg_ratio<0.01 \u21d2 likely blank/flat.",
+    "Background assumed \u2248 light gray; non-bg counts pixels < 250."
+  ],
+  "per_image": [
+    {
+      "file": "view_0000.png",
+      "std": 25.973179350891666,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0001.png",
+      "std": 27.033901012046407,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0002.png",
+      "std": 22.63650818794056,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0003.png",
+      "std": 23.34295450831581,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0004.png",
+      "std": 21.85706591265497,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0005.png",
+      "std": 21.427427073334645,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0006.png",
+      "std": 27.746684805666447,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0007.png",
+      "std": 26.098985329054667,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0008.png",
+      "std": 33.92321422602298,
+      "non_bg_ratio": 1.0
+    },
+    {
+      "file": "view_0009.png",
+      "std": 34.032700828913434,
+      "non_bg_ratio": 1.0
+    }
+  ]
+}
