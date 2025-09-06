@@ -1,202 +1,198 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Minimal render test for pyrender-based pipeline.
+
+- Generates N spherical views (default 10)
+- Renders with encode.render_views_to_tempdir(...)
+- Runs quick sanity checks on the resulting PNGs
+- Produces a contact_sheet.png and a report.json
+- Returns exit code 0 on pass, 1 on failure
+
+Usage:
+  python test_render_views.py /path/to/model.glb \
+      --views 10 --res 512 --out ./render_test_out --cleanup
+
+Notes:
+  - Assumes PYOPENGL_PLATFORM=egl (prints a warning if not).
+  - Uses your encode.generate_spherical_views / render_views_to_tempdir.
+"""
+
 import os
-import numpy as np
-import trimesh
+import sys
+import math
+import json
 import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import argparse
-import tempfile
-import shutil
+from pathlib import Path
+from typing import List, Dict, Any
 
-# Import our custom modules
-# NOTE: This script assumes 'encode.py' and 'cal_dist.py' are updated accordingly.
+try:
+    import numpy as np
+    from PIL import Image, ImageOps
+except Exception as e:
+    print("❌ Missing dependencies. Please install: numpy, pillow")
+    raise
+
+# Import your module that contains generate_spherical_views and render_views_to_tempdir
 import encode
-import cal_dist
 
 
-# --- Phase 1 Worker: Renders images and returns their directory ---
-def render_worker(object_path, camera_views): # <-- Removed 'quality' argument
+def compute_image_metrics(img: Image.Image) -> Dict[str, float]:
     """
-    A helper function that runs in a separate process to RENDER an object's views.
-    It now uses pyrender, which is more efficient.
+    Very lightweight quality heuristics:
+    - per-image std (higher => more content, not flat)
+    - fraction of pixels that are not close to the light gray background (~244)
     """
-    try:
-        # Wrap the rendering call in xvfb-run for headless environments
-        pid = os.getpid()
-        print(f"RENDER WORKER (PID: {pid}) started for: {os.path.basename(object_path)}")
-        
-        # The function in 'encode.py' now uses pyrender
-        # No need to run it in a subprocess, but xvfb is needed for headless.
-        # We can run the function directly. The ProcessPoolExecutor already isolates it.
-        # However, pyrender needs an OpenGL context. It's safer to use xvfb
-        # for each worker if running on a server without a physical display.
-        
-        # For simplicity and robustness on headless systems, we'll keep the xvfb-run call
-        # but have it execute a small wrapper script or a python command.
-        # A simpler approach that often works is setting the display variable.
-        # Let's try the direct call first as it's cleaner. If it fails on a server,
-        # one would add `os.environ['PYOPENGL_PLATFORM'] = 'egl'` or wrap in `xvfb-run`
-        
-        image_dir = encode.render_views_to_tempdir(object_path, camera_views)
-        
-        print(f"✅ RENDER WORKER (PID: {pid}) finished: {os.path.basename(object_path)}")
-        return object_path, image_dir
-        
-    except Exception as e:
-        print(f"!!!!!!!!!!!!!! ERROR in render worker for {os.path.basename(object_path)} !!!!!!!!!!!!!!")
-        import traceback
-        traceback.print_exc()
-        return object_path, None
-    
-    
-if __name__ == '__main__':
-    # --- 1. Main Configuration ---
-    parser = argparse.ArgumentParser(description="Run 3D model similarity tests in parallel.")
-    parser.add_argument('--models', nargs='+', default=['assets/model1.glb', 'assets/model2.glb'],
-                        help="List of model files to process. The first model will be used for the rotation invariance test.")
-    parser.add_argument('--model_type', type=str, default='dinov2',
-                        choices=['dinov1', 'dinov2', 'clip', 'sscd', 'sam2'],
-                        help="The feature extractor model to use.")
-    # parser.add_argument('--quality', type=str, default='FAST', choices=['FAST', 'HIGH'],
-                        # help="Rendering quality ('FAST' uses EEVEE, 'HIGH' uses CYCLES).")
-    parser.add_argument('--views', type=int, default=50, help="Number of views to render per object.")
-    parser.add_argument('--workers', type=int, default=4, help="Number of parallel processes to run.")
-    parser.add_argument('--output_dir', type=str, default='assets/results_features', help="Directory to save the final feature descriptors.")
-    
-    # Add paths for models that require them
-    parser.add_argument('--sscd_path', type=str, default='checkpoints/sscd_imagenet_mixup.torchscript.pt', help="Path to the SSCD model file.")
-    parser.add_argument('--sam2_config', type=str, default='configs/sam2.1_hiera_l.yaml', help="Path to the SAM2 model config file.")
-    parser.add_argument('--sam2_checkpoint', type=str, default='checkpoints/sam2.1_hiera_large.pt', help="Path to the SAM2 model checkpoint.")
-    
+    arr = np.asarray(img.convert("RGB"), dtype=np.uint8)
+    std = float(arr.std())
+
+    # Count pixels that are not near the background.
+    # Your bg ~ 0xF4 (244). Treat anything < 250 as "not-bg".
+    non_bg = np.any(arr < 250, axis=2)
+    non_bg_ratio = float(non_bg.mean())
+
+    return {"std": std, "non_bg_ratio": non_bg_ratio}
+
+
+def make_contact_sheet(image_paths: List[Path], dest: Path, thumb: int = 256) -> None:
+    imgs = [Image.open(p).convert("RGB") for p in image_paths]
+    # Preserve aspect by fitting into thumb x thumb
+    thumbs = [ImageOps.contain(im, (thumb, thumb)) for im in imgs]
+
+    n = len(thumbs)
+    cols = int(math.ceil(math.sqrt(n)))
+    rows = int(math.ceil(n / cols))
+    margin = 8
+
+    sheet_w = cols * thumb + (cols + 1) * margin
+    sheet_h = rows * thumb + (rows + 1) * margin
+
+    sheet = Image.new("RGB", (sheet_w, sheet_h), (240, 240, 240))
+    for idx, im in enumerate(thumbs):
+        r, c = divmod(idx, cols)
+        x = margin + c * (thumb + margin)
+        y = margin + r * (thumb + margin)
+        sheet.paste(im, (x, y))
+    sheet.save(dest)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Quick render sanity test with 10 views.")
+    parser.add_argument("model", type=str, help="Path to mesh (e.g., .glb/.obj/.ply)")
+    parser.add_argument("--views", type=int, default=10, help="Number of views to render")
+    parser.add_argument("--res", type=int, default=512, help="Image resolution (square)")
+    parser.add_argument("--out", type=str, default=None, help="Output directory (default: ./render_test_OUT/<stem>_<ts>)")
+    parser.add_argument("--cleanup", action="store_true", help="Remove per-view PNGs after contact sheet/report")
     args = parser.parse_args()
 
-    # ---(Optional) Download Blender ---
-    # if not os.path.exists(encode.BLENDER_EXECUTABLE_PATH):
-    #     print("Blender executable not found. Please ensure Blender is installed and set up correctly.")
-    #     encode._install_blender()
-    print("✅ Using pyrender for rendering. Ensure 'pyrender', 'trimesh', and 'pyglet' are installed.")
+    model_path = Path(args.model)
+    if not model_path.exists():
+        print(f"❌ Model not found: {model_path}")
+        sys.exit(1)
 
-    # --- 2. Setup ---
-    print("--- Initializing Test Environment ---")
-    
-    MODEL_ASSET_INFO = {
-        'dinov1': {'loader_func_name': 'load_dinov1_model'},
-        'dinov2': {'loader_func_name': 'load_dinov2_model'},
-        'clip': {'loader_func_name': 'load_clip_model'},
-        'sscd': {'loader_func_name': 'load_sscd_model', 'args': [args.sscd_path]},
-        'sam2': {'loader_func_name': 'load_sam2_model', 'args': [args.sam2_config, args.sam2_checkpoint]},
-    }
-    
-    # This will be the master list of all models to be processed
-    models_to_process = list(args.models)
-    rotated_models_temp_dir = tempfile.mkdtemp()
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    base_out = Path(args.out) if args.out else Path("render_test_OUT") / f"{model_path.stem}_{ts}"
+    base_out.mkdir(parents=True, exist_ok=True)
 
-    # --- 2a. Rotation Invariance Check ---
+    # 1) Generate views
+    print(f"➡️  Generating {args.views} spherical views …")
+    views = encode.generate_spherical_views(num_views=args.views)
+
+    # 2) Render with your pyrender-based function
+    print(f"➡️  Rendering to tempdir (res={args.res}) …")
+    tmp_dir = encode.render_views_to_tempdir(str(model_path), views, resolution=args.res)
+
+    if tmp_dir is None or not Path(tmp_dir).exists():
+        print("❌ Rendering failed (no image directory returned). "
+              "If you’re on a headless server, ensure EGL works: export PYOPENGL_PLATFORM=egl")
+        sys.exit(1)
+
+    # 3) Collect PNGs and run checks
+    pngs = sorted(Path(tmp_dir).glob("view_*.png"))
+    if len(pngs) == 0:
+        print("❌ No PNGs produced.")
+        sys.exit(1)
+
+    # Copy images to final output for inspection
+    copied_pngs = []
+    for p in pngs:
+        dest = base_out / p.name
+        dest.write_bytes(p.read_bytes())
+        copied_pngs.append(dest)
+
+    print(f"✅ Rendered {len(copied_pngs)}/{args.views} images -> {base_out}")
+
+    # 4) Simple quality metrics
+    per_img = []
+    blank_flags = 0
+    for p in copied_pngs:
+        try:
+            im = Image.open(p)
+            metrics = compute_image_metrics(im)
+            per_img.append({"file": p.name, **metrics})
+            # Heuristic “blank/flat” threshold:
+            # std < 2.0 and non_bg_ratio < 0.01 means almost entirely flat bg
+            if metrics["std"] < 2.0 and metrics["non_bg_ratio"] < 0.01:
+                blank_flags += 1
+        except Exception as e:
+            per_img.append({"file": p.name, "error": str(e)})
+
+    mean_std = float(np.mean([d["std"] for d in per_img if "std" in d])) if per_img else 0.0
+    mean_non_bg = float(np.mean([d["non_bg_ratio"] for d in per_img if "non_bg_ratio" in d])) if per_img else 0.0
+
+    # 5) Contact sheet
+    sheet_path = base_out / "contact_sheet.png"
     try:
-        if models_to_process:
-            NUM_ROT = 2
-            base_model_path = models_to_process[0]
-            print(f"\n--- 🔄 Generating {NUM_ROT} random rotations for '{os.path.basename(base_model_path)}' to test invariance ---")
-            base_mesh = trimesh.load(base_model_path, force='mesh')
-            
-            for i in range(NUM_ROT):
-                # rotate random angle across axis Y
-                transform = trimesh.transformations.rotation_matrix(
-                    angle=np.random.uniform(0, 2 * np.pi), 
-                    direction=[0, 1, 0], 
-                    point=base_mesh.centroid
-                )
-                rotated_mesh = base_mesh.copy()
-                rotated_mesh.apply_transform(transform)
-                
-                original_name, original_ext = os.path.splitext(os.path.basename(base_model_path))
-                rotated_name = f"{original_name}_ROT_{i+1}{original_ext}"
-                rotated_path = os.path.join(rotated_models_temp_dir, rotated_name)
-                
-                rotated_mesh.export(rotated_path)
-                print(f"  -> Created temporary rotated model: {rotated_name}")
-                models_to_process.append(rotated_path)
-        
-        # --- 3. PHASE 1: PARALLEL RENDERING ---
-        # Each worker runs Blender to render views. This is CPU-intensive.
-        # No large AI models are loaded here, saving VRAM.
-        print(f"\n--- Starting PHASE 1: Parallel Rendering with {args.workers} worker(s) ---")
-        camera_views = encode.generate_spherical_views(num_views=args.views)
-        start_time = time.time()
-        
-        rendered_data = {} # Stores {model_path: image_directory}
-        with ProcessPoolExecutor(max_workers=args.workers) as executor:
-            future_to_path = {
-                executor.submit(render_worker, path, camera_views): path
-                for path in models_to_process
-            }
-            
-            for future in as_completed(future_to_path):
-                path, image_dir = future.result()
-                if image_dir:
-                    rendered_data[path] = image_dir
-        
-        print(f"--- Phase 1 completed in {time.time() - start_time:.2f} seconds. ---")
+        make_contact_sheet(copied_pngs, sheet_path, thumb=min(256, args.res))
+        print(f"🖼️  Contact sheet: {sheet_path}")
+    except Exception as e:
+        print(f"⚠️  Contact sheet failed: {e}")
 
-        # --- 4. PHASE 2: CENTRALIZED ENCODING ---
-        # The main process now loads the model ONCE and processes all rendered images.
-        # This is VRAM-efficient and fast on a GPU.
-        print("\n--- Starting PHASE 2: Centralized Encoding ---")
-        print(f"--- 🧠 Loading '{args.model_type}' model into VRAM... ---")
-        model_loader = getattr(encode, MODEL_ASSET_INFO[args.model_type]['loader_func_name'])
-        model_assets = model_loader(*MODEL_ASSET_INFO[args.model_type].get('args', []))
+    # 6) Report
+    report = {
+        "model_path": str(model_path),
+        "output_dir": str(base_out),
+        "requested_views": args.views,
+        "rendered_images": len(copied_pngs),
+        "blank_like_images": blank_flags,
+        "mean_std": round(mean_std, 4),
+        "mean_non_bg_ratio": round(mean_non_bg, 4),
+        "pyopengl_platform": os.environ.get("PYOPENGL_PLATFORM", None),
+        "passed": (len(copied_pngs) == args.views and blank_flags == 0),
+        "notes": [
+            "Heuristics: std<2 AND non_bg_ratio<0.01 ⇒ likely blank/flat.",
+            "Background assumed ≈ light gray; non-bg counts pixels < 250.",
+        ],
+        "per_image": per_img,
+    }
+    report_path = base_out / "report.json"
+    report_path.write_text(json.dumps(report, indent=2))
+    print(f"📝 Report: {report_path}")
 
-        results = {}
-        print("--- ⚙️  Encoding rendered images to generate descriptors... ---")
-        for path, image_dir in rendered_data.items():
-            # This function should exist in 'encode.py'.
-            # It loads images from a directory and uses the model to get a descriptor.
-            descriptor = encode.create_descriptor_from_images(image_dir, model_type=args.model_type, model_assets=model_assets)
-            results[path] = descriptor
-            # Clean up the temporary images for this model immediately after use
-            shutil.rmtree(image_dir)
-        print("--- ✅ Encoding complete. ---")
+    # 7) Optional cleanup of per-view PNGs (keep sheet + report)
+    if args.cleanup:
+        for p in copied_pngs:
+            try:
+                p.unlink()
+            except Exception:
+                pass
+        try:
+            # Also remove the temporary directory created by the renderer
+            import shutil
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        except Exception:
+            pass
+        print("🧹 Cleaned up individual PNGs. Kept contact_sheet.png and report.json.")
 
-        # --- 5. Save Features & Run Comparisons ---
-        if len(results) < 2:
-            print("⚠️ Need at least two successfully processed models to compare.")
-        else:
-            # --- 5a. Save all features ONCE to a persistent directory ---
-            os.makedirs(args.output_dir, exist_ok=True)
-            print(f"\n--- 💾 Saving feature descriptors to '{args.output_dir}/' ---")
-            for path, descriptor in results.items():
-                base_name = os.path.basename(path)
-                file_name, _ = os.path.splitext(base_name)
-                save_path = os.path.join(args.output_dir, f"{file_name}.npy")
-                np.save(save_path, descriptor)
-            print("--- ✅ All features saved. ---")
+    # 8) Exit code
+    if not report["passed"]:
+        print("❌ Render test FAILED (see report.json).")
+        sys.exit(1)
+    print("✅ Render test PASSED.")
+    sys.exit(0)
 
-            # --- 5b. Calculate and Print Dissimilarity Matrix ---
-            print("\n--- Pairwise Dissimilarity Matrix (Chamfer Distance) ---")
-            model_paths = sorted(list(results.keys()))
-            
-            col_width = max(len(os.path.basename(p)) for p in model_paths) + 2
-            header = f"| {'Model':<{col_width}} |"
-            for path in model_paths:
-                header += f" {os.path.basename(path):<{col_width}} |"
-            print(header)
-            print("-" * len(header))
 
-            for i in range(len(model_paths)):
-                row_str = f"| {os.path.basename(model_paths[i]):<{col_width}} |"
-                for j in range(len(model_paths)):
-                    if i == j:
-                        distance_str = "0.0000"
-                    else:
-                        path_A, path_B = model_paths[i], model_paths[j]
-                        distance = cal_dist.calculate_chamfer_distance(results[path_A], results[path_B])
-                        distance_str = f"{distance:.4f}"
-                    
-                    row_str += f" {distance_str:<{col_width}} |"
-                print(row_str)
-
-    finally:
-        # --- 6. Final Cleanup ---
-        print(f"\n--- 🧹 Cleaning up temporary directory: {rotated_models_temp_dir} ---")
-        shutil.rmtree(rotated_models_temp_dir)
-
-    print("\nAll tests completed.")
+if __name__ == "__main__":
+    main()
